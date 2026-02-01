@@ -6,6 +6,17 @@ function getParams() {
   return { to: p.get("to") || "", msg: p.get("msg") || "" };
 }
 
+// ─── Google Font loader ─────────────────────────────────────────
+function useFontLoad() {
+  useEffect(() => {
+    const link = document.createElement("link");
+    link.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&display=swap";
+    link.rel = "stylesheet";
+    document.head.appendChild(link);
+    return () => document.head.removeChild(link);
+  }, []);
+}
+
 // ─── Confetti Engine ────────────────────────────────────────────
 function useConfetti() {
   const canvasRef = useRef(null);
@@ -18,41 +29,41 @@ function useConfetti() {
     const ctx = canvas.getContext("2d");
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    const colors = ["#ff4757","#ff6b81","#a29bfe","#fd79a8","#fdcb6e","#e17055","#00cec9","#fff"];
+    const colors = ["#ff4757","#ff6b81","#a29bfe","#fd79a8","#fdcb6e","#e17055","#fff","#c56cf0"];
     const shapes = ["circle","rect","heart"];
-    for (let i = 0; i < 180; i++) {
+    for (let i = 0; i < 200; i++) {
       particlesRef.current.push({
-        x: canvas.width * (0.3 + Math.random() * 0.4),
-        y: canvas.height * 0.4,
-        vx: (Math.random() - 0.5) * 15,
-        vy: -Math.random() * 17 - 4,
-        ay: 0.46,
+        x: canvas.width * (0.25 + Math.random() * 0.5),
+        y: canvas.height * 0.45,
+        vx: (Math.random() - 0.5) * 16,
+        vy: -Math.random() * 18 - 5,
+        ay: 0.48,
         life: 1,
-        decay: 0.007 + Math.random() * 0.013,
+        decay: 0.006 + Math.random() * 0.014,
         color: colors[Math.floor(Math.random() * colors.length)],
-        size: 6 + Math.random() * 11,
+        size: 5 + Math.random() * 12,
         rot: Math.random() * Math.PI * 2,
-        rotV: (Math.random() - 0.5) * 0.3,
+        rotV: (Math.random() - 0.5) * 0.35,
         shape: shapes[Math.floor(Math.random() * shapes.length)],
       });
     }
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      particlesRef.current = particlesRef.current.filter((p) => p.life > 0);
-      particlesRef.current.forEach((p) => {
+      particlesRef.current = particlesRef.current.filter(p => p.life > 0);
+      particlesRef.current.forEach(p => {
         p.vy += p.ay; p.x += p.vx; p.y += p.vy;
         p.life -= p.decay; p.rot += p.rotV;
         ctx.save();
         ctx.translate(p.x, p.y);
         ctx.rotate(p.rot);
-        ctx.globalAlpha = p.life;
+        ctx.globalAlpha = Math.max(0, p.life);
         ctx.fillStyle = p.color;
         if (p.shape === "circle") {
           ctx.beginPath(); ctx.arc(0,0,p.size/2,0,Math.PI*2); ctx.fill();
         } else if (p.shape === "rect") {
           ctx.fillRect(-p.size/2, -p.size*0.3, p.size, p.size*0.6);
         } else {
-          const s = p.size * 0.04;
+          const s = p.size * 0.042;
           ctx.beginPath(); ctx.moveTo(0,s*3);
           ctx.bezierCurveTo(-s*4,s,-s*4,-s*2,0,-s*2);
           ctx.bezierCurveTo(s*4,-s*2,s*4,s,0,s*3); ctx.fill();
@@ -76,29 +87,29 @@ function FloatingHearts({ count = 14, emoji = "💕" }) {
   const hearts = useRef(
     Array.from({ length: count }, (_, i) => ({
       id: i,
-      left: Math.random() * 100,
-      size: 1.2 + Math.random() * 2.2,
-      duration: 7 + Math.random() * 8,
-      delay: Math.random() * 6,
-      drift: (Math.random() - 0.5) * 60,
+      left: 5 + Math.random() * 90,
+      size: 1 + Math.random() * 2,
+      duration: 8 + Math.random() * 9,
+      delay: Math.random() * 7,
+      drift: (Math.random() - 0.5) * 70,
     }))
   ).current;
   return (
     <div style={{ position:"absolute", inset:0, pointerEvents:"none", overflow:"hidden", zIndex:0 }}>
-      {hearts.map((h) => (
+      {hearts.map(h => (
         <div key={h.id} style={{
-          position:"absolute", left:`${h.left}%`, top:"-60px",
-          fontSize:`${h.size}rem`, opacity:0.35,
+          position:"absolute", left:`${h.left}%`, top:"-50px",
+          fontSize:`${h.size}rem`, opacity:0.32,
           animation:`floatHeart ${h.duration}s linear ${h.delay}s infinite`,
           "--drift":`${h.drift}px`,
         }}>{emoji}</div>
       ))}
       <style>{`
         @keyframes floatHeart {
-          0%   { transform: translateY(-60px) translateX(0) rotate(0deg); opacity:0; }
-          10%  { opacity:0.4; }
-          90%  { opacity:0.3; }
-          100% { transform: translateY(100vh) translateX(var(--drift)) rotate(360deg); opacity:0; }
+          0%   { transform: translateY(-50px) translateX(0) rotate(0deg); opacity:0; }
+          8%   { opacity:0.38; }
+          92%  { opacity:0.25; }
+          100% { transform: translateY(105vh) translateX(var(--drift)) rotate(420deg); opacity:0; }
         }
       `}</style>
     </div>
@@ -109,251 +120,228 @@ function FloatingHearts({ count = 14, emoji = "💕" }) {
 function Toast({ show, children }) {
   return (
     <div style={{
-      position:"fixed", bottom:32, left:"50%", transform:`translateX(-50%) translateY(${show ? 0 : 120}px)`,
-      transition:"transform 0.4s cubic-bezier(.34,1.56,.64,1)",
-      background:"#2d1b24", color:"#fff", padding:"0.75rem 1.6rem",
-      borderRadius:999, fontSize:"1rem", fontWeight:600, zIndex:100,
-      boxShadow:"0 8px 24px rgba(0,0,0,0.25)", pointerEvents:"none",
-      whiteSpace:"nowrap",
+      position:"fixed",
+      bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+      left:"50%",
+      transform:`translateX(-50%) translateY(${show ? 0 : 140}px)`,
+      transition:"transform 0.42s cubic-bezier(.34,1.56,.64,1)",
+      background:"#1a1a2e", color:"#fff", padding:"0.85rem 1.8rem",
+      borderRadius:999, fontSize:"0.95rem", fontWeight:600, zIndex:100,
+      boxShadow:"0 8px 28px rgba(0,0,0,0.3)", pointerEvents:"none",
+      whiteSpace:"nowrap", letterSpacing:"0.02em",
     }}>{children}</div>
   );
 }
 
 // ─── Main App ───────────────────────────────────────────────────
 export default function App() {
+  useFontLoad();
   const params = getParams();
-
-  // If URL has ?to=… → lover lands directly on prank. Otherwise → setup screen.
   const initialStage = params.to ? "prank" : "input";
 
-  const [stage, setStage] = useState(initialStage);
-  const [name, setName]   = useState(params.to || "");
-  const [customMessage, setCustomMessage] = useState(
-    params.msg || "I KNEW YOU'D SAY YES! 💖🎉"
-  );
-  const [noPos, setNoPos]           = useState({ x: 0, y: 0 });
-  const [noEscapes, setNoEscapes]   = useState(0);
-  const [yesScale, setYesScale]     = useState(1);
-  const [showToast, setShowToast]   = useState(false);
+  const [stage, setStage]                 = useState(initialStage);
+  const [name, setName]                   = useState(params.to || "");
+  const [customMessage, setCustomMessage] = useState(params.msg || "I KNEW YOU'D SAY YES! 💖");
+  const [noPos, setNoPos]                 = useState({ x: 0, y: 0 });
+  const [noEscapes, setNoEscapes]         = useState(0);
+  const [yesScale, setYesScale]           = useState(1);
+  const [showToast, setShowToast]         = useState(false);
   const [generatedLink, setGeneratedLink] = useState("");
-  const containerRef = useRef(null);
-  const { burst, ConfettiCanvas } = useConfetti();
+  const arenaRef                          = useRef(null);
+  const { burst, ConfettiCanvas }         = useConfetti();
 
-  // ── No-button dodge ──
+  // ── No-button dodge (improved with better mobile touch handling) ──
   const dodge = useCallback((clientX, clientY) => {
-    const el = containerRef.current;
+    const el = arenaRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const W = rect.width, H = rect.height;
-    const bw = 140, bh = 60;
+    const W = rect.width;
+    const H = rect.height;
+    
+    // Adaptive button size based on screen
+    const bw = window.innerWidth < 400 ? 100 : 120;
+    const bh = 48;
+    const pad = 16;
+
     let best = null, bestDist = 0;
-    for (let i = 0; i < 50; i++) {
-      const cx = 30 + Math.random() * (W - bw - 60);
-      const cy = 80 + Math.random() * (H - bh - 160);
+    for (let i = 0; i < 80; i++) {
+      const cx = pad + Math.random() * (W - bw - pad * 2);
+      const cy = pad + Math.random() * (H - bh - pad * 2);
       const dist = Math.hypot(
-        cx + bw/2 - (clientX - rect.left),
-        cy + bh/2 - (clientY - rect.top)
+        cx + bw / 2 - (clientX - rect.left),
+        cy + bh / 2 - (clientY - rect.top)
       );
       if (dist > bestDist) { best = { x: cx, y: cy }; bestDist = dist; }
     }
     if (best) setNoPos(best);
-    setNoEscapes((n) => n + 1);
+    setNoEscapes(n => n + 1);
   }, []);
 
-  const onMoveOrHover = useCallback((e) => {
-    const cx = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
-    const cy = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
+  const onInteract = useCallback((e) => {
+    e.preventDefault();
+    const touch = e.touches?.[0] ?? e.changedTouches?.[0];
+    const cx = touch?.clientX ?? e.clientX ?? 0;
+    const cy = touch?.clientY ?? e.clientY ?? 0;
     dodge(cx, cy);
   }, [dodge]);
 
   useEffect(() => {
-    if (noEscapes > 0) setYesScale(1 + noEscapes * 0.04);
+    if (noEscapes > 0) setYesScale(Math.min(1 + noEscapes * 0.055, 2.5));
   }, [noEscapes]);
 
-  // ── Generate shareable link ──
+  // ── Link generation ──
   const handleGenerateLink = () => {
     const base = window.location.origin + window.location.pathname;
-    const link = `${base}?to=${encodeURIComponent(name.trim())}&msg=${encodeURIComponent(customMessage)}`;
-    setGeneratedLink(link);
+    setGeneratedLink(`${base}?to=${encodeURIComponent(name.trim())}&msg=${encodeURIComponent(customMessage)}`);
   };
 
-  // ── Copy link + toast ──
   const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(generatedLink);
-    } catch {
+    try { await navigator.clipboard.writeText(generatedLink); }
+    catch {
       const ta = document.createElement("textarea");
       ta.value = generatedLink;
-      document.body.appendChild(ta);
-      ta.select();
+      ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
     setShowToast(true);
-    setTimeout(() => setShowToast(false), 2200);
+    setTimeout(() => setShowToast(false), 2400);
   };
 
-  // ── Reset back to setup ──
   const handleReset = () => {
-    setStage("input");
-    setNoEscapes(0);
-    setNoPos({ x: 0, y: 0 });
-    setYesScale(1);
-    setGeneratedLink("");
+    setStage("input"); setNoEscapes(0);
+    setNoPos({ x:0, y:0 }); setYesScale(1); setGeneratedLink("");
     window.history.replaceState({}, "", window.location.pathname);
   };
 
-  // ─────────────────────────────────────────────────────────────
-  // INPUT / SETUP SCREEN  (buyer sees this)
-  // ─────────────────────────────────────────────────────────────
+  // ─────────────────── RENDER ─────────────────────────────────
+
+  // ── INPUT (setup screen – buyer only) ───────────────────────
   if (stage === "input") {
     return (
       <div style={S.screen}>
         <FloatingHearts count={10} emoji="💗" />
         <div style={S.inputCard}>
-
-          <div style={{ fontSize:"2.8rem", marginBottom:4, animation:"pulse 1s ease-in-out infinite" }}>💝</div>
-
-          <h1 style={{ ...S.heading, color:"#e91e63", fontSize:"clamp(1.7rem,5.5vw,2.5rem)", textShadow:"0 4px 16px rgba(233,30,99,0.35)" }}>
-            Create Your Valentine Prank
+          <div style={{ fontSize:"2.8rem", marginBottom:4, animation:"pulse 1.1s ease-in-out infinite" }}>💝</div>
+          <h1 style={{ ...S.displayTitle, color:"#e91e63", textShadow:"0 3px 14px rgba(233,30,99,0.4)" }}>
+            Create Your<br/>Valentine Prank
           </h1>
-          <p style={{ color:"#ad1457", opacity:0.75, marginBottom:20, fontSize:"0.95rem", textAlign:"center" }}>
-            They'll never see this screen 😈
-          </p>
+          <p style={S.subtitle}>They'll never see this screen 😈</p>
 
-          <input
-            type="text"
-            placeholder="Their name or nickname…"
-            value={name}
-            onChange={(e) => { setName(e.target.value); setGeneratedLink(""); }}
-            style={S.input}
-          />
-          <input
-            type="text"
-            placeholder="Celebration message…"
-            value={customMessage}
-            onChange={(e) => { setCustomMessage(e.target.value); setGeneratedLink(""); }}
-            style={S.input}
-          />
+          <div style={S.inputWrapper}>
+            <input
+              type="text"
+              placeholder="Their name or nickname…"
+              value={name}
+              onChange={e => { setName(e.target.value); setGeneratedLink(""); }}
+              style={S.input}
+              maxLength={30}
+            />
+            <input
+              type="text"
+              placeholder="Celebration message…"
+              value={customMessage}
+              onChange={e => { setCustomMessage(e.target.value); setGeneratedLink(""); }}
+              style={S.input}
+              maxLength={80}
+            />
+          </div>
 
-          {/* Generate link button */}
           {!generatedLink && (
             <button
               onClick={handleGenerateLink}
               disabled={!name.trim()}
-              style={{
-                ...S.primaryBtn,
-                opacity: name.trim() ? 1 : 0.4,
+              style={{ 
+                ...S.primaryBtn, 
+                opacity: name.trim() ? 1 : 0.5, 
                 cursor: name.trim() ? "pointer" : "not-allowed",
-                marginTop: 20,
+                transform: name.trim() ? "scale(1)" : "scale(0.98)"
               }}
             >
               Generate Link →
             </button>
           )}
 
-          {/* Generated link card */}
           {generatedLink && (
             <div style={S.linkCard}>
-              <p style={{ fontSize:"0.82rem", color:"#ad1457", fontWeight:600, marginBottom:8, textAlign:"center" }}>
-                ✨ Your prank link is ready! Send this to {name.trim()}:
-              </p>
+              <p style={S.linkLabel}>✨ Link ready! Send this to {name.trim()}:</p>
               <div style={S.linkBox}>
                 <span style={S.linkText}>{generatedLink}</span>
               </div>
-              <button onClick={handleCopyLink} style={S.copyBtn}>
-                Copy Link 📋
-              </button>
-
-              {/* Preview / test it yourself */}
-              <button
-                onClick={() => setStage("prank")}
-                style={{ ...S.ghostBtn, marginTop: 10 }}
-              >
-                Preview prank →
-              </button>
+              <button onClick={handleCopyLink} style={S.copyBtn}>Copy Link 📋</button>
+              <button onClick={() => setStage("prank")} style={S.ghostBtn}>Preview prank →</button>
             </div>
           )}
         </div>
 
         <Toast show={showToast}>✓ Link copied!</Toast>
         {ConfettiCanvas}
-        <style>{`
-          @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.25)} }
-        `}</style>
+        <style>{`@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}`}</style>
       </div>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // CELEBRATION SCREEN
-  // ─────────────────────────────────────────────────────────────
+  // ── CELEBRATION ─────────────────────────────────────────────
   if (stage === "celebration") {
     return (
-      <div style={{ ...S.screen, background:"linear-gradient(135deg,#7e57c2 0%,#ec407a 60%,#e91e63 100%)" }}>
-        <FloatingHearts count={28} emoji="❤️" />
-        <div style={{ position:"relative", zIndex:2, textAlign:"center", padding:"0 1.5rem" }}>
-          <div style={{ fontSize:"3.6rem", marginBottom:10, animation:"pulse 0.6s ease-in-out infinite" }}>🎉💝🎉</div>
-          <h1 style={{
-            color:"#fff", fontSize:"clamp(2rem,8vw,4rem)", fontWeight:800,
-            lineHeight:1.15, textShadow:"0 4px 24px rgba(0,0,0,0.3)",
-            animation:"popIn 0.5s cubic-bezier(.34,1.56,.64,1) both",
-          }}>
+      <div style={{ ...S.screen, background:"linear-gradient(145deg,#6a1b9a 0%,#ec407a 55%,#e91e63 100%)" }}>
+        <FloatingHearts count={30} emoji="❤️" />
+        <div style={{ position:"relative", zIndex:2, textAlign:"center", padding:"0 1.5rem", maxWidth:500 }}>
+          <div style={{ fontSize:"3.5rem", marginBottom:12, animation:"pulse 0.55s ease-in-out infinite" }}>💝</div>
+          <h1 style={{ ...S.displayTitle, color:"#fff", textShadow:"0 4px 22px rgba(0,0,0,0.32)", animation:"popIn 0.5s cubic-bezier(.34,1.56,.64,1) both" }}>
             {customMessage}
           </h1>
-          <p style={{ color:"rgba(255,255,255,0.92)", fontSize:"clamp(1.2rem,4vw,1.7rem)", marginTop:16 }}>
+          <p style={{ color:"rgba(255,255,255,0.95)", fontSize:"clamp(1.15rem,4.5vw,1.7rem)", marginTop:16, fontFamily:"system-ui,sans-serif", lineHeight:1.4 }}>
             You're the best, {name || "cutie"}! 🥰
           </p>
           {noEscapes > 0 && (
-            <p style={{ color:"rgba(255,255,255,0.6)", marginTop:14, fontSize:"0.92rem", fontStyle:"italic" }}>
-              (You tried to escape {noEscapes} time{noEscapes > 1 ? "s" : ""} 😂)
-            </p>
+            <div style={S.escapeCounter}>
+              <p style={{ margin:0, fontSize:"0.95rem" }}>
+                😂 "No" tried to escape <strong>{noEscapes}</strong> time{noEscapes !== 1 ? "s" : ""}!
+              </p>
+            </div>
           )}
-
-          {/* Only show reset if buyer is previewing, not the lover */}
           {!params.to && (
-            <button onClick={handleReset} style={{ ...S.primaryBtn, marginTop:28, background:"linear-gradient(90deg,#00c853,#00b140)" }}>
+            <button onClick={handleReset} style={{ ...S.primaryBtn, marginTop:32, background:"linear-gradient(90deg,#00c853,#00b140)" }}>
               ← Back to Setup
             </button>
           )}
         </div>
-
         {ConfettiCanvas}
         <style>{`
-          @keyframes popIn { 0%{transform:scale(0.5);opacity:0} 100%{transform:scale(1);opacity:1} }
-          @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.25)} }
+          @keyframes popIn{0%{transform:scale(0.45);opacity:0}100%{transform:scale(1);opacity:1}}
+          @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}
         `}</style>
       </div>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // PRANK SCREEN  (lover lands here via link)
-  // ─────────────────────────────────────────────────────────────
+  // ── PRANK (lover lands here) ────────────────────────────────
   return (
-    <div ref={containerRef} style={S.screen} onMouseMove={onMoveOrHover} onTouchMove={onMoveOrHover}>
+    <div style={S.screen}>
       <FloatingHearts count={14} emoji="💕" />
+      <div style={{ position:"relative", zIndex:2, width:"100%", maxWidth:540, display:"flex", flexDirection:"column", alignItems:"center", padding:"0 1.25rem" }}>
 
-      <div style={{ position:"relative", zIndex:2, width:"100%", maxWidth:700, display:"flex", flexDirection:"column", alignItems:"center" }}>
-        <h1 style={{
-          color:"#fff", fontSize:"clamp(1.9rem,7vw,3.8rem)", fontWeight:800,
-          textAlign:"center", lineHeight:1.15,
-          textShadow:"0 6px 20px rgba(0,0,0,0.35)", marginBottom:8,
-          animation:"slideDown 0.7s cubic-bezier(.34,1.56,.64,1) both",
-        }}>
-          Will you be my Valentine, {name || "cutie"}? 💕
+        <h1 style={{ ...S.displayTitle, color:"#fff", textShadow:"0 5px 18px rgba(0,0,0,0.35)", animation:"slideDown 0.65s cubic-bezier(.34,1.56,.64,1) both", marginBottom:12 }}>
+          Will you be my<br/>Valentine, {name || "cutie"}? 💕
         </h1>
 
         {noEscapes > 0 && (
-          <p style={{ color:"rgba(255,255,255,0.7)", fontSize:"0.92rem", marginBottom:4, fontStyle:"italic" }}>
-            😂 No escaped {noEscapes} time{noEscapes > 1 ? "s" : ""}…
+          <p style={{ color:"rgba(255,255,255,0.75)", fontSize:"0.9rem", marginBottom:8, fontStyle:"italic", fontFamily:"system-ui,sans-serif", textAlign:"center" }}>
+            😂 "No" escaped {noEscapes} time{noEscapes !== 1 ? "s" : ""}… just give in already!
           </p>
         )}
 
-        {/* Button arena */}
-        <div style={{ position:"relative", width:"100%", height:260, marginTop:20, display:"flex", alignItems:"center", justifyContent:"center" }}>
-
-          {/* YES – grows as No escapes */}
+        {/* Arena – the bounded box where No dodges inside */}
+        <div
+          ref={arenaRef}
+          onMouseMove={onInteract}
+          onTouchMove={onInteract}
+          onTouchStart={onInteract}
+          style={S.arena}
+        >
+          {/* YES */}
           <button
             onClick={() => { setStage("celebration"); burst(); }}
             style={{
@@ -362,11 +350,11 @@ export default function App() {
               transition:"transform 0.4s cubic-bezier(.34,1.56,.64,1), box-shadow 0.3s",
               zIndex:3,
             }}
-            onMouseEnter={(e) => {
+            onMouseEnter={e => {
               e.currentTarget.style.transform = `scale(${yesScale * 1.12})`;
               e.currentTarget.style.boxShadow = "0 18px 44px rgba(255,23,68,0.6)";
             }}
-            onMouseLeave={(e) => {
+            onMouseLeave={e => {
               e.currentTarget.style.transform = `scale(${yesScale})`;
               e.currentTarget.style.boxShadow = S.yesBtn.boxShadow;
             }}
@@ -376,25 +364,29 @@ export default function App() {
 
           {/* NO – dodges */}
           <button
-            onMouseEnter={onMoveOrHover}
-            onTouchStart={onMoveOrHover}
-            onClick={onMoveOrHover}
+            onMouseEnter={onInteract}
+            onTouchStart={onInteract}
+            onClick={onInteract}
             style={{
               ...S.noBtn,
               left: noPos.x,
               top: noPos.y,
-              transition:"left 0.35s cubic-bezier(.34,1.56,.64,1), top 0.35s cubic-bezier(.34,1.56,.64,1)",
+              transition:"left 0.28s cubic-bezier(.34,1.56,.64,1), top 0.28s cubic-bezier(.34,1.56,.64,1)",
             }}
           >
             No 😔
           </button>
         </div>
+
+        <p style={{ color:"rgba(255,255,255,0.5)", fontSize:"0.8rem", marginTop:16, textAlign:"center", fontStyle:"italic" }}>
+          Hint: Chasing "No" makes "Yes" bigger 😉
+        </p>
       </div>
 
       {ConfettiCanvas}
       <style>{`
-        @keyframes slideDown { 0%{transform:translateY(-40px);opacity:0} 100%{transform:translateY(0);opacity:1} }
-        @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.25)} }
+        @keyframes slideDown{0%{transform:translateY(-36px);opacity:0}100%{transform:translateY(0);opacity:1}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}
       `}</style>
     </div>
   );
@@ -403,71 +395,220 @@ export default function App() {
 // ─── Styles ─────────────────────────────────────────────────────
 const S = {
   screen: {
-    minHeight:"100dvh", width:"100%",
-    display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+    minHeight:"100dvh",
+    width:"100%",
+    display:"flex",
+    flexDirection:"column",
+    alignItems:"center",
+    justifyContent:"center",
     background:"linear-gradient(135deg,#ffe6e9 0%,#fff0f5 50%,#f8e1ff 100%)",
-    overflow:"hidden", position:"relative",
-    fontFamily:"'Segoe UI',system-ui,-apple-system,sans-serif",
+    overflow:"hidden",
+    position:"relative",
+    fontFamily:"system-ui,-apple-system,sans-serif",
     color:"#2d1b24",
+    paddingTop:"env(safe-area-inset-top, 0px)",
+    paddingBottom:"env(safe-area-inset-bottom, 0px)",
   },
+
+  displayTitle: {
+    fontFamily:"'Playfair Display', Georgia, serif",
+    fontWeight:800,
+    fontSize:"clamp(1.85rem, 7.8vw, 3.6rem)",
+    lineHeight:1.14,
+    textAlign:"center",
+    marginBottom:10,
+    letterSpacing:"-0.015em",
+  },
+
+  subtitle: {
+    color:"#ad1457",
+    opacity:0.75,
+    marginBottom:28,
+    fontSize:"0.95rem",
+    textAlign:"center",
+    fontFamily:"system-ui,sans-serif",
+    fontWeight:500,
+  },
+
   inputCard: {
-    position:"relative", zIndex:2,
-    display:"flex", flexDirection:"column", alignItems:"center",
-    width:"100%", maxWidth:440, padding:"2rem 1.5rem",
+    position:"relative",
+    zIndex:2,
+    display:"flex",
+    flexDirection:"column",
+    alignItems:"center",
+    width:"100%",
+    maxWidth:440,
+    padding:"clamp(1rem, 3vw, 1.75rem) clamp(1.25rem, 4vw, 1.5rem)",
   },
-  heading: {
-    fontWeight:800, textAlign:"center", lineHeight:1.15, marginBottom:6,
+
+  inputWrapper: {
+    width:"100%",
+    padding:"0 clamp(0.5rem, 2vw, 0rem)",  // Extra padding on small screens
   },
+
   input: {
-    width:"100%", padding:"0.85rem 1.4rem", margin:"0.5rem 0", fontSize:"1.05rem",
-    border:"2px solid #ffb6c1", borderRadius:999,
-    background:"rgba(255,255,255,0.92)", outline:"none",
-    boxShadow:"0 4px 12px rgba(0,0,0,0.07)",
-    transition:"border-color 0.25s, box-shadow 0.25s",
+    width:"100%",
+    padding:"0.95rem 1.4rem",
+    margin:"0.5rem 0",
+    fontSize:"16px",                  // 16px prevents iOS zoom
+    border:"2px solid #ffb6c1",
+    borderRadius:12,
+    background:"rgba(255,255,255,0.95)",
+    outline:"none",
+    boxShadow:"0 2px 8px rgba(0,0,0,0.04)",
+    transition:"border-color 0.25s, box-shadow 0.25s, transform 0.2s",
+    WebkitAppearance:"none",
+    MozAppearance:"none",
+    appearance:"none",
+    touchAction:"manipulation",
+    boxSizing:"border-box",
   },
+
   primaryBtn: {
-    padding:"0.9rem 2.6rem", fontSize:"1.15rem", fontWeight:700, color:"#fff",
-    background:"linear-gradient(90deg,#ff4081,#f50057)", border:"none", borderRadius:999,
-    cursor:"pointer", boxShadow:"0 8px 24px rgba(245,0,87,0.35)",
-    transition:"transform 0.25s, box-shadow 0.25s",
+    width:"100%",
+    maxWidth:340,
+    padding:"1rem 1.6rem",
+    fontSize:"1.1rem",
+    fontWeight:700,
+    color:"#fff",
+    background:"linear-gradient(90deg,#ff4081,#f50057)",
+    border:"none",
+    borderRadius:12,
+    cursor:"pointer",
+    boxShadow:"0 8px 24px rgba(245,0,87,0.35)",
+    transition:"transform 0.25s, box-shadow 0.25s, opacity 0.25s",
+    marginTop:20,
+    minHeight:52,
+    touchAction:"manipulation",
   },
+
   linkCard: {
-    marginTop:24, width:"100%", background:"rgba(255,255,255,0.88)",
-    borderRadius:20, padding:"1.4rem 1.2rem",
-    boxShadow:"0 8px 28px rgba(233,30,99,0.12)", border:"1.5px solid #ffcdd2",
+    marginTop:24,
+    width:"100%",
+    background:"rgba(255,255,255,0.92)",
+    borderRadius:20,
+    padding:"1.35rem 1.15rem",
+    boxShadow:"0 8px 28px rgba(233,30,99,0.12)",
+    border:"2px solid #ffcdd2",
   },
+
+  linkLabel: {
+    fontSize:"0.88rem",
+    color:"#ad1457",
+    fontWeight:600,
+    marginBottom:10,
+    textAlign:"center",
+    lineHeight:1.4,
+  },
+
   linkBox: {
-    background:"#fff", borderRadius:12, padding:"0.7rem 1rem",
-    border:"1px solid #f48fb1", overflowX:"auto", marginBottom:12,
+    background:"#fff",
+    borderRadius:10,
+    padding:"0.75rem 1rem",
+    border:"1.5px solid #f48fb1",
+    overflowX:"auto",
+    marginBottom:12,
+    WebkitOverflowScrolling:"touch",
+    maxWidth:"100%",
   },
+
   linkText: {
-    fontSize:"0.78rem", color:"#c2185b", wordBreak:"break-all", fontFamily:"monospace",
+    fontSize:"0.75rem",
+    color:"#c2185b",
+    wordBreak:"break-all",
+    fontFamily:"'SF Mono','Consolas',monospace",
+    lineHeight:1.5,
   },
+
   copyBtn: {
-    width:"100%", padding:"0.7rem", fontSize:"1rem", fontWeight:700, color:"#fff",
-    background:"linear-gradient(90deg,#ff4081,#f50057)", border:"none", borderRadius:999,
-    cursor:"pointer", boxShadow:"0 6px 18px rgba(245,0,87,0.3)",
+    width:"100%",
+    padding:"0.85rem",
+    fontSize:"1.05rem",
+    fontWeight:700,
+    color:"#fff",
+    background:"linear-gradient(90deg,#ff4081,#f50057)",
+    border:"none",
+    borderRadius:12,
+    cursor:"pointer",
+    boxShadow:"0 6px 18px rgba(245,0,87,0.3)",
+    minHeight:52,
+    touchAction:"manipulation",
     transition:"transform 0.2s, box-shadow 0.2s",
   },
+
   ghostBtn: {
-    width:"100%", padding:"0.55rem", fontSize:"0.88rem", fontWeight:600,
-    color:"#e91e63", background:"transparent", border:"1.5px solid #f48fb1",
-    borderRadius:999, cursor:"pointer", transition:"background 0.2s",
+    width:"100%",
+    padding:"0.75rem",
+    fontSize:"0.92rem",
+    fontWeight:600,
+    color:"#e91e63",
+    background:"transparent",
+    border:"2px solid #f48fb1",
+    borderRadius:12,
+    cursor:"pointer",
+    marginTop:10,
+    minHeight:48,
+    touchAction:"manipulation",
+    transition:"all 0.2s",
   },
+
+  escapeCounter: {
+    marginTop:20,
+    padding:"0.85rem 1.4rem",
+    background:"rgba(255,255,255,0.18)",
+    borderRadius:12,
+    border:"1.5px solid rgba(255,255,255,0.3)",
+    color:"#fff",
+    backdropFilter:"blur(8px)",
+  },
+
+  // The bounded arena where Yes sits centered and No dodges inside
+  arena: {
+    position:"relative",
+    width:"100%",
+    maxWidth:"min(500px, 92vw)",
+    height:"clamp(240px, 45vw, 320px)",
+    marginTop:20,
+    display:"flex",
+    alignItems:"center",
+    justifyContent:"center",
+    touchAction:"none",
+    border:"2px dashed rgba(255,255,255,0.3)",
+    borderRadius:16,
+    background:"rgba(255,255,255,0.08)",
+  },
+
   yesBtn: {
-    fontSize:"clamp(1.6rem,5.5vw,2.4rem)", fontWeight:700,
-    padding:"0.95rem 3rem", border:"none", borderRadius:999,
-    cursor:"pointer", color:"#fff",
+    fontSize:"clamp(1.6rem, 6.2vw, 2.5rem)",
+    fontWeight:700,
+    padding:"0.95rem 2.8rem",
+    border:"none",
+    borderRadius:14,
+    cursor:"pointer",
+    color:"#fff",
     background:"linear-gradient(135deg,#ff5252,#ff1744)",
-    boxShadow:"0 10px 28px rgba(255,23,68,0.4)",
-    userSelect:"none", touchAction:"manipulation",
+    boxShadow:"0 12px 32px rgba(255,23,68,0.45)",
+    userSelect:"none",
+    touchAction:"manipulation",
+    minHeight:56,
+    zIndex:2,
   },
+
   noBtn: {
-    position:"absolute", fontSize:"clamp(1.3rem,4.5vw,1.9rem)", fontWeight:700,
-    padding:"0.8rem 2.4rem", border:"none", borderRadius:999,
-    cursor:"pointer", color:"#fff",
+    position:"absolute",
+    fontSize:"clamp(1.2rem, 4.5vw, 1.8rem)",
+    fontWeight:700,
+    padding:"0.75rem 2.2rem",
+    border:"none",
+    borderRadius:14,
+    cursor:"pointer",
+    color:"#fff",
     background:"linear-gradient(135deg,#607d8b,#455a64)",
-    boxShadow:"0 8px 20px rgba(0,0,0,0.22)",
-    userSelect:"none", touchAction:"manipulation", willChange:"transform",
+    boxShadow:"0 8px 20px rgba(0,0,0,0.25)",
+    userSelect:"none",
+    touchAction:"manipulation",
+    minHeight:52,
+    willChange:"transform",
+    zIndex:4,
   },
 };
