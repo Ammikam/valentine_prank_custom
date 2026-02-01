@@ -133,6 +133,55 @@ function Toast({ show, children }) {
   );
 }
 
+// ─── Sound Effect Hook ──────────────────────────────────────────
+function useSuccessSound() {
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    // Create AudioContext for better mobile support
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    const playSound = () => {
+      // Create a sweet "ting" sound using Web Audio API
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      // Sweet bell-like tone
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.1);
+      oscillator.frequency.exponentialRampToValueAtTime(600, audioContext.currentTime + 0.3);
+      
+      // Fade out envelope
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.5);
+    };
+    
+    audioRef.current = playSound;
+    
+    // Resume audio context on first user interaction (required for mobile)
+    const resumeAudio = () => {
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+    };
+    
+    document.addEventListener('touchstart', resumeAudio, { once: true });
+    document.addEventListener('click', resumeAudio, { once: true });
+    
+    return () => {
+      audioContext.close();
+    };
+  }, []);
+
+  return () => audioRef.current?.();
+}
+
 // ─── Main App ───────────────────────────────────────────────────
 export default function App() {
   useFontLoad();
@@ -149,6 +198,7 @@ export default function App() {
   const [generatedLink, setGeneratedLink] = useState("");
   const arenaRef                          = useRef(null);
   const { burst, ConfettiCanvas }         = useConfetti();
+  const playSuccessSound                  = useSuccessSound();
 
   // ── No-button dodge (improved with better mobile touch handling) ──
   const dodge = useCallback((clientX, clientY) => {
@@ -323,12 +373,12 @@ export default function App() {
       <FloatingHearts count={14} emoji="💕" />
       <div style={{ position:"relative", zIndex:2, width:"100%", maxWidth:540, display:"flex", flexDirection:"column", alignItems:"center", padding:"0 1.25rem" }}>
 
-        <h1 style={{ ...S.displayTitle, color:"#fff", textShadow:"0 5px 18px rgba(0,0,0,0.35)", animation:"slideDown 0.65s cubic-bezier(.34,1.56,.64,1) both", marginBottom:12 }}>
+        <h1 style={{ ...S.displayTitle, color:"#e02121", textShadow:"0 5px 18px rgba(0,0,0,0.35)", animation:"slideDown 0.65s cubic-bezier(.34,1.56,.64,1) both", marginBottom:12 }}>
           Will you be my<br/>Valentine, {name || "cutie"}? 💕
         </h1>
 
         {noEscapes > 0 && (
-          <p style={{ color:"rgba(255,255,255,0.75)", fontSize:"0.9rem", marginBottom:8, fontStyle:"italic", fontFamily:"system-ui,sans-serif", textAlign:"center" }}>
+          <p style={{ color:"rgba(173, 50, 50, 0.75)", fontSize:"0.9rem", marginBottom:8, fontStyle:"italic", fontFamily:"system-ui,sans-serif", textAlign:"center" }}>
             😂 "No" escaped {noEscapes} time{noEscapes !== 1 ? "s" : ""}… just give in already!
           </p>
         )}
@@ -343,7 +393,13 @@ export default function App() {
         >
           {/* YES */}
           <button
-            onClick={() => { setStage("celebration"); burst(); }}
+            onClick={() => { 
+              playSuccessSound();
+              setTimeout(() => {
+                setStage("celebration"); 
+                burst();
+              }, 100); // Small delay for sound to start before confetti
+            }}
             style={{
               ...S.yesBtn,
               transform:`scale(${yesScale})`,
