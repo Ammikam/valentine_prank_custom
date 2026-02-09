@@ -20,7 +20,7 @@ function generateId() {
 function useFontLoad() {
   useEffect(() => {
     const link = document.createElement("link");
-    link.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Dancing+Script:wght@600;700&family=Satisfy&display=swap";
+    link.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Dancing+Script:wght@600;700&family=Satisfy&family=Pacifico&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
     return () => document.head.removeChild(link);
@@ -39,21 +39,21 @@ function useConfetti() {
     const ctx = canvas.getContext("2d");
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    const colors = ["#ff4757","#ff6b81","#a29bfe","#fd79a8","#fdcb6e","#e17055","#fff","#c56cf0"];
+    const colors = ["#ff4757","#ff6b81","#a29bfe","#fd79a8","#fdcb6e","#e17055","#fff","#c56cf0","#feca57","#ff9ff3"];
     const shapes = ["circle","rect","heart"];
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 250; i++) {
       particlesRef.current.push({
         x: canvas.width * (0.25 + Math.random() * 0.5),
         y: canvas.height * 0.45,
-        vx: (Math.random() - 0.5) * 16,
-        vy: -Math.random() * 18 - 5,
-        ay: 0.48,
+        vx: (Math.random() - 0.5) * 18,
+        vy: -Math.random() * 20 - 6,
+        ay: 0.5,
         life: 1,
-        decay: 0.006 + Math.random() * 0.014,
+        decay: 0.005 + Math.random() * 0.012,
         color: colors[Math.floor(Math.random() * colors.length)],
-        size: 5 + Math.random() * 12,
+        size: 6 + Math.random() * 14,
         rot: Math.random() * Math.PI * 2,
-        rotV: (Math.random() - 0.5) * 0.35,
+        rotV: (Math.random() - 0.5) * 0.4,
         shape: shapes[Math.floor(Math.random() * shapes.length)],
       });
     }
@@ -198,6 +198,40 @@ function useSuccessSound() {
   return () => audioRef.current?.();
 }
 
+// ─── Dodge Sound Effect Hook ────────────────────────────────────
+function useDodgeSound() {
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    const playSound = () => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.1);
+      
+      gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.15);
+    };
+    
+    audioRef.current = playSound;
+    
+    return () => {
+      audioContext.close();
+    };
+  }, []);
+
+  return () => audioRef.current?.();
+}
+
 // ─── Response Tracking Hook ─────────────────────────────────────
 function useTracking(linkId) {
   const [trackingData, setTrackingData] = useState(null);
@@ -275,7 +309,7 @@ export default function App() {
   const [stage, setStage]                 = useState(initialStage);
   const [name, setName]                   = useState(params.to || "");
   const [customMessage, setCustomMessage] = useState(params.msg || "I KNEW YOU'D SAY YES! 💖");
-  const [question, setQuestion]           = useState(params.q || "Will you be my Valentine?");
+  const [question, setQuestion]           = useState(params.q || "Will you join me for a coffee date");
   const [noPos, setNoPos]                 = useState({ x: 0, y: 0 });
   const [noEscapes, setNoEscapes]         = useState(0);
   const [yesScale, setYesScale]           = useState(1);
@@ -283,9 +317,11 @@ export default function App() {
   const [toastMessage, setToastMessage]   = useState("");
   const [generatedLink, setGeneratedLink] = useState("");
   const [linkId, setLinkId]               = useState(params.id || "");
+  const [noBtnShake, setNoBtnShake]       = useState(false);
   const arenaRef                          = useRef(null);
   const { burst, ConfettiCanvas }         = useConfetti();
   const playSuccessSound                  = useSuccessSound();
+  const playDodgeSound                    = useDodgeSound();
   const { trackingData, saveTracking, loadTracking } = useTracking(linkId);
 
   // Question presets
@@ -312,6 +348,16 @@ export default function App() {
     }
   }, [noEscapes, params.id, saveTracking]);
 
+  // IMPROVED: Smoother, more gradual scaling with diminishing returns
+  useEffect(() => {
+    if (noEscapes > 0) {
+      // Use logarithmic growth for smooth, natural scaling
+      const logarithmicScale = 1 + Math.log(noEscapes + 1) * 0.15;
+      // Cap at 1.8x for better visual aesthetics
+      setYesScale(Math.min(logarithmicScale, 1.8));
+    }
+  }, [noEscapes]);
+
   const dodge = useCallback((clientX, clientY) => {
     const el = arenaRef.current;
     if (!el) return;
@@ -321,10 +367,11 @@ export default function App() {
     
     const bw = window.innerWidth < 400 ? 100 : 120;
     const bh = 48;
-    const pad = 16;
+    const pad = 20;
 
+    // Find furthest safe position from cursor
     let best = null, bestDist = 0;
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < 100; i++) {
       const cx = pad + Math.random() * (W - bw - pad * 2);
       const cy = pad + Math.random() * (H - bh - pad * 2);
       const dist = Math.hypot(
@@ -333,9 +380,14 @@ export default function App() {
       );
       if (dist > bestDist) { best = { x: cx, y: cy }; bestDist = dist; }
     }
-    if (best) setNoPos(best);
+    if (best) {
+      setNoPos(best);
+      setNoBtnShake(true);
+      setTimeout(() => setNoBtnShake(false), 300);
+    }
     setNoEscapes(n => n + 1);
-  }, []);
+    playDodgeSound();
+  }, [playDodgeSound]);
 
   const onInteract = useCallback((e) => {
     e.preventDefault();
@@ -344,10 +396,6 @@ export default function App() {
     const cy = touch?.clientY ?? e.clientY ?? 0;
     dodge(cx, cy);
   }, [dodge]);
-
-  useEffect(() => {
-    if (noEscapes > 0) setYesScale(Math.min(1 + noEscapes * 0.055, 2.5));
-  }, [noEscapes]);
 
   const handleGenerateLink = () => {
     const id = generateId();
@@ -421,7 +469,7 @@ export default function App() {
                 placeholder="Sweetheart..."
                 value={name}
                 onChange={e => { setName(e.target.value); setGeneratedLink(""); }}
-                style={S.input}
+                style={S.inputName}
                 maxLength={30}
               />
               <CharCounter current={name.length} max={30} />
@@ -485,19 +533,19 @@ export default function App() {
                   transform: name.trim() ? "scale(1)" : "scale(0.98)"
                 }}
               >
-                Generate Magic Link ✨
+                Generate Link 
               </button>
             )}
 
             {generatedLink && (
               <div style={S.linkResultCard}>
-                <p style={S.linkLabel}>🎉 Link ready! Send this to {name.trim()}:</p>
+                <p style={S.linkLabel}> Link ready! Send this to {name.trim()}:</p>
                 <div style={S.linkBox}>
                   <span style={S.linkText}>{generatedLink}</span>
                 </div>
                 <div style={S.buttonGroup}>
-                  <button onClick={handleCopyLink} style={S.copyBtn}>Copy Link 📋</button>
-                  <button onClick={() => setStage("prank")} style={S.previewBtn}>Preview 👀</button>
+                  <button onClick={handleCopyLink} style={S.copyBtn}>Copy Link </button>
+                  <button onClick={() => setStage("prank")} style={S.previewBtn}>Preview </button>
                 </div>
                 
                 {/* Tracking Status */}
@@ -542,9 +590,10 @@ export default function App() {
   if (stage === "celebration") {
     return (
       <div style={S.celebrationScreen}>
-        <FloatingHearts count={30} emoji="❤️" />
+        <FloatingHearts count={35} emoji="❤️" />
         
-        <div style={S.celebrationContent}>
+        {/* Celebration Modal Card */}
+        <div style={S.celebrationModal}>
           <div style={S.celebrationIconWrapper}>
             <div style={S.celebrationIcon}>💝</div>
             <div style={S.celebrationRing}></div>
@@ -556,14 +605,15 @@ export default function App() {
           </h1>
           
           <p style={S.celebrationSubtitle}>
-            You're the best, {name || "cutie"}! 🥰
+            You're absolutely amazing, {name || "cutie"}! 🥰
           </p>
+          
+          <div style={S.celebrationDivider}></div>
           
           {noEscapes > 0 && (
             <div style={S.escapeStats}>
-              <div style={S.escapeIcon}>😂</div>
-              <p style={S.escapeText}>
-                "No" tried to escape <strong>{noEscapes}</strong> time{noEscapes !== 1 ? "s" : ""}!
+              <p style={S.escapeSubtext}>
+                love always wins 💕
               </p>
             </div>
           )}
@@ -578,20 +628,24 @@ export default function App() {
         {ConfettiCanvas}
         <style>{`
           @keyframes popIn {
-            0% { transform: scale(0.45); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
+            0% { transform: scale(0.5) translateY(30px); opacity: 0; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
           }
           @keyframes pulse {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.22); }
+            50% { transform: scale(1.15); }
           }
           @keyframes ripple {
-            0% { transform: scale(0.8); opacity: 0.8; }
-            100% { transform: scale(2); opacity: 0; }
+            0% { transform: scale(0.8); opacity: 0.6; }
+            100% { transform: scale(2.2); opacity: 0; }
           }
           @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-20px); }
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-25px) rotate(10deg); }
+          }
+          @keyframes slideUp {
+            0% { transform: translateY(40px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
           }
         `}</style>
       </div>
@@ -600,18 +654,26 @@ export default function App() {
 
   // ── PRANK (lover lands here) ────────────────────────────────
   return (
-    <div style={S.screen}>
-      <FloatingHearts count={14} emoji="💕" />
-      <div style={{ position:"relative", zIndex:2, width:"100%", maxWidth:540, display:"flex", flexDirection:"column", alignItems:"center", padding:"0 1.25rem" }}>
-
-        <h1 style={{ ...S.displayTitle, color:"#e02121", textShadow:"0 5px 18px rgba(0,0,0,0.35)", animation:"slideDown 0.65s cubic-bezier(.34,1.56,.64,1) both", marginBottom:12 }}>
-          {question}, {name || "cutie"}? 💕
-        </h1>
+    <div style={S.prankScreen}>
+      <FloatingHearts count={18} emoji="💕" />
+      
+      {/* Prank Card Container */}
+      <div style={S.prankCard}>
+        <div style={S.prankHeader}>
+          <div style={S.heartDecor}>💖</div>
+          <h1 style={S.prankTitle}>
+            {question}, {name || "cutie"}?
+          </h1>
+          <div style={S.heartDecor}>💖</div>
+        </div>
 
         {noEscapes > 0 && (
-          <p style={{ color:"rgba(173, 50, 50, 0.75)", fontSize:"0.9rem", marginBottom:8, fontStyle:"italic", fontFamily:"system-ui,sans-serif", textAlign:"center" }}>
-            😂 "No" escaped {noEscapes} time{noEscapes !== 1 ? "s" : ""}… just give in already!
-          </p>
+          <div style={S.escapeCounter}>
+            <span style={S.escapeEmoji}>😏</span>
+            <p style={S.escapeMessage}>
+              "No" has escaped <strong>{noEscapes}</strong> time{noEscapes !== 1 ? "s" : ""}
+            </p>
+          </div>
         )}
 
         <div
@@ -626,12 +688,12 @@ export default function App() {
             style={{
               ...S.yesBtn,
               transform:`scale(${yesScale})`,
-              transition:"transform 0.4s cubic-bezier(.34,1.56,.64,1), box-shadow 0.3s",
+              transition:"transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease",
               zIndex:3,
             }}
             onMouseEnter={e => {
               e.currentTarget.style.transform = `scale(${yesScale * 1.12})`;
-              e.currentTarget.style.boxShadow = "0 18px 44px rgba(255,23,68,0.6)";
+              e.currentTarget.style.boxShadow = "0 20px 50px rgba(255,23,68,0.7)";
             }}
             onMouseLeave={e => {
               e.currentTarget.style.transform = `scale(${yesScale})`;
@@ -649,22 +711,38 @@ export default function App() {
               ...S.noBtn,
               left: noPos.x,
               top: noPos.y,
-              transition:"left 0.28s cubic-bezier(.34,1.56,.64,1), top 0.28s cubic-bezier(.34,1.56,.64,1)",
+              transition:"left 0.25s cubic-bezier(.34,1.56,.64,1), top 0.25s cubic-bezier(.34,1.56,.64,1)",
+              animation: noBtnShake ? "shake 0.3s" : "none",
             }}
           >
             No 😔
           </button>
         </div>
 
-        <p style={{ color:"rgba(255,255,255,0.5)", fontSize:"0.8rem", marginTop:16, textAlign:"center", fontStyle:"italic" }}>
-          Hint: Chasing "No" makes "Yes" bigger 😉
-        </p>
+        <div style={S.prankFooter}>
+          <p style={S.hintText}>💡 Hint: The more you chase "No", the bigger "Yes" gets!</p>
+        </div>
       </div>
 
       {ConfettiCanvas}
       <style>{`
-        @keyframes slideDown{0%{transform:translateY(-36px);opacity:0}100%{transform:translateY(0);opacity:1}}
-        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}
+        @keyframes slideDown {
+          0% { transform: translateY(-40px); opacity: 0; }
+          100% { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.22); }
+        }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0) rotate(0deg); }
+          25% { transform: translateX(-8px) rotate(-5deg); }
+          75% { transform: translateX(8px) rotate(5deg); }
+        }
+        @keyframes glow {
+          0%, 100% { box-shadow: 0 12px 32px rgba(255,23,68,0.45); }
+          50% { box-shadow: 0 12px 42px rgba(255,23,68,0.7); }
+        }
       `}</style>
     </div>
   );
@@ -743,13 +821,31 @@ const S = {
     letterSpacing:"0.02em",
     textTransform:"uppercase",
   },
-
-  input: {
+input: {
+  width: "100%",
+  padding: "1rem 1.25rem",
+  fontSize: "16px",
+  fontFamily: "'Sacramento', cursive",         
+  fontWeight: 400,                               
+  border: "2px solid rgba(233,30,99,0.15)",
+  borderRadius: 12,
+  background: "rgba(255,255,255,0.8)",
+  outline: "none",
+  boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+  transition: "all 0.3s ease",
+  WebkitAppearance: "none",
+  MozAppearance: "none",
+  appearance: "none",
+  touchAction: "manipulation",
+  boxSizing: "border-box",
+  color: "#e91e63",
+},
+  inputName: {
     width:"100%",
     padding:"1rem 1.25rem",
-    fontSize:"16px",
-    fontFamily:"'Dancing Script', cursive",
-    fontWeight:600,
+    fontSize:"18px",
+    fontFamily:"'Pacifico', cursive",
+    fontWeight:400,
     border:"2px solid rgba(233,30,99,0.15)",
     borderRadius:12,
     background:"rgba(255,255,255,0.8)",
@@ -931,6 +1027,145 @@ const S = {
     justifyContent:"center",
   },
 
+  // ─── PRANK SCREEN ───────────────────────────────────────────
+  prankScreen: {
+    minHeight:"100dvh",
+    width:"100%",
+    display:"flex",
+    flexDirection:"column",
+    alignItems:"center",
+    justifyContent:"center",
+    background:"linear-gradient(135deg,#fff5f7 0%,#ffe3e9 50%,#ffd6e0 100%)",
+    overflow:"hidden",
+    position:"relative",
+    fontFamily:"system-ui,-apple-system,sans-serif",
+    padding:"clamp(1rem, 3vw, 2rem)",
+  },
+
+  prankCard: {
+    position:"relative",
+    zIndex:2,
+    width:"100%",
+    maxWidth:600,
+    background:"rgba(255,255,255,0.95)",
+    backdropFilter:"blur(20px)",
+    borderRadius:28,
+    boxShadow:"0 24px 64px rgba(233,30,99,0.3), 0 0 0 1px rgba(255,255,255,0.6)",
+    overflow:"hidden",
+    animation:"slideDown 0.65s cubic-bezier(.34,1.56,.64,1)",
+    padding:"2rem clamp(1rem, 3vw, 2rem) 1.5rem",
+  },
+
+  prankHeader: {
+    textAlign:"center",
+    marginBottom:"1.5rem",
+    display:"flex",
+    alignItems:"center",
+    justifyContent:"center",
+    gap:"1rem",
+  },
+
+  heartDecor: {
+    fontSize:"2rem",
+    animation:"pulse 2s ease-in-out infinite",
+  },
+
+  prankTitle: {
+    fontFamily:"'Pacifico', cursive",
+    fontWeight:400,
+    fontSize:"clamp(1.5rem, 5vw, 2.2rem)",
+    lineHeight:1.3,
+    color:"#e91e63",
+    textShadow:"0 2px 12px rgba(233,30,99,0.2)",
+    margin:0,
+  },
+
+  escapeCounter: {
+    display:"flex",
+    alignItems:"center",
+    justifyContent:"center",
+    gap:"0.75rem",
+    padding:"0.75rem 1.25rem",
+    background:"linear-gradient(135deg, rgba(255,152,0,0.1) 0%, rgba(255,193,7,0.15) 100%)",
+    borderRadius:14,
+    marginBottom:"1.5rem",
+    border:"2px solid rgba(255,152,0,0.2)",
+  },
+
+  escapeEmoji: {
+    fontSize:"1.5rem",
+  },
+
+  escapeMessage: {
+    margin:0,
+    fontSize:"0.9rem",
+    color:"#e65100",
+    fontWeight:600,
+  },
+
+  arena: {
+    position:"relative",
+    width:"100%",
+    height:"clamp(280px, 50vw, 380px)",
+    display:"flex",
+    alignItems:"center",
+    justifyContent:"center",
+    touchAction:"none",
+    border:"3px dashed rgba(233,30,99,0.2)",
+    borderRadius:20,
+    background:"linear-gradient(135deg, rgba(255,240,245,0.6) 0%, rgba(252,228,236,0.6) 100%)",
+    marginBottom:"1rem",
+  },
+
+  yesBtn: {
+    fontSize:"clamp(1.7rem, 6.5vw, 2.6rem)",
+    fontWeight:700,
+    padding:"1rem 3rem",
+    border:"none",
+    borderRadius:16,
+    cursor:"pointer",
+    color:"#fff",
+    background:"linear-gradient(135deg,#ff5252,#ff1744)",
+    boxShadow:"0 12px 32px rgba(255,23,68,0.45)",
+    userSelect:"none",
+    touchAction:"manipulation",
+    zIndex:2,
+    fontFamily:"system-ui, sans-serif",
+    animation:"glow 2s ease-in-out infinite",
+  },
+
+  noBtn: {
+    position:"absolute",
+    fontSize:"clamp(1.2rem, 4.8vw, 1.9rem)",
+    fontWeight:700,
+    padding:"0.8rem 2.4rem",
+    border:"none",
+    borderRadius:14,
+    cursor:"pointer",
+    color:"#fff",
+    background:"linear-gradient(135deg,#78909c,#546e7a)",
+    boxShadow:"0 8px 24px rgba(0,0,0,0.2)",
+    userSelect:"none",
+    touchAction:"manipulation",
+    willChange:"transform",
+    zIndex:4,
+    fontFamily:"system-ui, sans-serif",
+  },
+
+  prankFooter: {
+    textAlign:"center",
+    marginTop:"1rem",
+  },
+
+  hintText: {
+    color:"rgba(233,30,99,0.6)",
+    fontSize:"0.85rem",
+    margin:0,
+    fontStyle:"italic",
+    fontWeight:500,
+  },
+
+  // ─── CELEBRATION SCREEN ─────────────────────────────────────
   celebrationScreen: {
     minHeight:"100dvh",
     width:"100%",
@@ -944,22 +1179,28 @@ const S = {
     padding:"2rem 1.5rem",
   },
 
-  celebrationContent: {
+  celebrationModal: {
     position:"relative",
     zIndex:2,
+    width:"100%",
+    maxWidth:520,
+    background:"rgba(255,255,255,0.98)",
+    backdropFilter:"blur(30px)",
+    borderRadius:32,
+    boxShadow:"0 32px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.8)",
+    padding:"3rem 2rem 2.5rem",
     textAlign:"center",
-    maxWidth:500,
-    animation:"popIn 0.6s cubic-bezier(.34,1.56,.64,1)",
+    animation:"popIn 0.7s cubic-bezier(.34,1.56,.64,1)",
   },
 
   celebrationIconWrapper: {
     position:"relative",
     display:"inline-block",
-    marginBottom:24,
+    marginBottom:32,
   },
 
   celebrationIcon: {
-    fontSize:"5rem",
+    fontSize:"5.5rem",
     animation:"float 3s ease-in-out infinite",
     position:"relative",
     zIndex:2,
@@ -970,11 +1211,11 @@ const S = {
     top:"50%",
     left:"50%",
     transform:"translate(-50%, -50%)",
-    width:100,
-    height:100,
-    border:"3px solid rgba(255,255,255,0.5)",
+    width:110,
+    height:110,
+    border:"4px solid rgba(233,30,99,0.4)",
     borderRadius:"50%",
-    animation:"ripple 2s ease-out infinite",
+    animation:"ripple 2.5s ease-out infinite",
   },
 
   celebrationRing2: {
@@ -982,127 +1223,80 @@ const S = {
     top:"50%",
     left:"50%",
     transform:"translate(-50%, -50%)",
-    width:100,
-    height:100,
-    border:"3px solid rgba(255,255,255,0.3)",
+    width:110,
+    height:110,
+    border:"4px solid rgba(233,30,99,0.3)",
     borderRadius:"50%",
-    animation:"ripple 2s ease-out infinite 0.5s",
+    animation:"ripple 2.5s ease-out infinite 0.7s",
   },
 
   celebrationTitle: {
     fontFamily:"'Playfair Display', Georgia, serif",
     fontWeight:800,
-    fontSize:"clamp(2rem, 7vw, 3.5rem)",
+    fontSize:"clamp(2rem, 7vw, 3.2rem)",
     lineHeight:1.2,
-    color:"#fff",
-    textShadow:"0 4px 24px rgba(0,0,0,0.3)",
-    marginBottom:16,
+    color:"#e91e63",
+    marginBottom:20,
+    textShadow:"0 2px 16px rgba(233,30,99,0.2)",
   },
 
   celebrationSubtitle: {
-    color:"rgba(255,255,255,0.95)",
-    fontSize:"clamp(1.15rem, 4.5vw, 1.7rem)",
+    color:"#ad1457",
+    fontSize:"clamp(1.1rem, 4vw, 1.5rem)",
     fontFamily:"'Satisfy', cursive",
     lineHeight:1.4,
-    marginBottom:24,
+    marginBottom:28,
+  },
+
+  celebrationDivider: {
+    width:80,
+    height:3,
+    background:"linear-gradient(90deg, transparent, #ff4081, transparent)",
+    margin:"0 auto 28px",
+    borderRadius:2,
   },
 
   escapeStats: {
-    marginTop:24,
-    padding:"1.25rem 1.5rem",
-    background:"rgba(255,255,255,0.15)",
-    borderRadius:16,
-    border:"2px solid rgba(255,255,255,0.25)",
-    backdropFilter:"blur(10px)",
-    display:"inline-block",
+    padding:"1.75rem 2rem",
+    background:"linear-gradient(135deg, rgba(255,64,129,0.08) 0%, rgba(245,0,87,0.12) 100%)",
+    borderRadius:20,
+    border:"2px solid rgba(233,30,99,0.15)",
+    marginBottom:24,
   },
 
-  escapeIcon: {
-    fontSize:"2rem",
-    marginBottom:8,
+  escapeIconLarge: {
+    fontSize:"3rem",
+    marginBottom:12,
   },
 
   escapeText: {
     margin:0,
-    color:"#fff",
+    color:"#ad1457",
+    fontSize:"1.05rem",
+    fontWeight:600,
+    lineHeight:1.6,
+  },
+
+  escapeSubtext: {
+    margin:"12px 0 0",
+    color:"#e91e63",
     fontSize:"0.95rem",
+    fontStyle:"italic",
     fontWeight:500,
   },
 
   backBtn: {
-    marginTop:32,
-    padding:"1rem 2rem",
+    padding:"1.1rem 2.5rem",
     fontSize:"1rem",
     fontWeight:700,
     color:"#fff",
     background:"linear-gradient(135deg,#00c853,#00b140)",
-    border:"2px solid rgba(255,255,255,0.3)",
-    borderRadius:12,
-    cursor:"pointer",
-    boxShadow:"0 8px 24px rgba(0,0,0,0.2)",
-    transition:"all 0.3s",
-    touchAction:"manipulation",
-    fontFamily:"system-ui, sans-serif",
-  },
-
-  displayTitle: {
-    fontFamily:"'Playfair Display', Georgia, serif",
-    fontWeight:800,
-    fontSize:"clamp(1.85rem, 7.8vw, 3.6rem)",
-    lineHeight:1.14,
-    textAlign:"center",
-    marginBottom:10,
-    letterSpacing:"-0.015em",
-  },
-
-  arena: {
-    position:"relative",
-    width:"100%",
-    maxWidth:"min(500px, 92vw)",
-    height:"clamp(240px, 45vw, 320px)",
-    marginTop:20,
-    display:"flex",
-    alignItems:"center",
-    justifyContent:"center",
-    touchAction:"none",
-    border:"2px dashed rgba(255,255,255,0.3)",
-    borderRadius:16,
-    background:"rgba(255,255,255,0.08)",
-  },
-
-  yesBtn: {
-    fontSize:"clamp(1.6rem, 6.2vw, 2.5rem)",
-    fontWeight:700,
-    padding:"0.95rem 2.8rem",
     border:"none",
     borderRadius:14,
     cursor:"pointer",
-    color:"#fff",
-    background:"linear-gradient(135deg,#ff5252,#ff1744)",
-    boxShadow:"0 12px 32px rgba(255,23,68,0.45)",
-    userSelect:"none",
+    boxShadow:"0 8px 24px rgba(0,200,83,0.3)",
+    transition:"all 0.3s cubic-bezier(.34,1.56,.64,1)",
     touchAction:"manipulation",
-    minHeight:56,
-    zIndex:2,
-    fontFamily:"system-ui, sans-serif",
-  },
-
-  noBtn: {
-    position:"absolute",
-    fontSize:"clamp(1.2rem, 4.5vw, 1.8rem)",
-    fontWeight:700,
-    padding:"0.75rem 2.2rem",
-    border:"none",
-    borderRadius:14,
-    cursor:"pointer",
-    color:"#fff",
-    background:"linear-gradient(135deg,#607d8b,#455a64)",
-    boxShadow:"0 8px 20px rgba(0,0,0,0.25)",
-    userSelect:"none",
-    touchAction:"manipulation",
-    minHeight:52,
-    willChange:"transform",
-    zIndex:4,
     fontFamily:"system-ui, sans-serif",
   },
 };
