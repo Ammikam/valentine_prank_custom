@@ -3,7 +3,11 @@ import { useState, useRef, useEffect, useCallback } from "react";
 // ─── URL Param Helpers ──────────────────────────────────────────
 function getParams() {
   const p = new URLSearchParams(window.location.search);
-  return { to: p.get("to") || "", msg: p.get("msg") || "" };
+  return { 
+    to: p.get("to") || "", 
+    msg: p.get("msg") || "",
+    q: p.get("q") || ""
+  };
 }
 
 // ─── Google Font loader ─────────────────────────────────────────
@@ -191,6 +195,7 @@ export default function App() {
   const [stage, setStage]                 = useState(initialStage);
   const [name, setName]                   = useState(params.to || "");
   const [customMessage, setCustomMessage] = useState(params.msg || "I KNEW YOU'D SAY YES! 💖");
+  const [question, setQuestion]           = useState(params.q || "Will you join me for a coffee date");
   const [noPos, setNoPos]                 = useState({ x: 0, y: 0 });
   const [noEscapes, setNoEscapes]         = useState(0);
   const [yesScale, setYesScale]           = useState(1);
@@ -242,7 +247,7 @@ export default function App() {
   // ── Link generation ──
   const handleGenerateLink = () => {
     const base = window.location.origin + window.location.pathname;
-    setGeneratedLink(`${base}?to=${encodeURIComponent(name.trim())}&msg=${encodeURIComponent(customMessage)}`);
+    setGeneratedLink(`${base}?to=${encodeURIComponent(name.trim())}&msg=${encodeURIComponent(customMessage)}&q=${encodeURIComponent(question)}`);
   };
 
   const handleCopyLink = async () => {
@@ -287,6 +292,14 @@ export default function App() {
               onChange={e => { setName(e.target.value); setGeneratedLink(""); }}
               style={S.input}
               maxLength={30}
+            />
+            <input
+              type="text"
+              placeholder="Your question (e.g., Will you join me for coffee?)"
+              value={question}
+              onChange={e => { setQuestion(e.target.value); setGeneratedLink(""); }}
+              style={S.input}
+              maxLength={100}
             />
             <input
               type="text"
@@ -374,7 +387,7 @@ export default function App() {
       <div style={{ position:"relative", zIndex:2, width:"100%", maxWidth:540, display:"flex", flexDirection:"column", alignItems:"center", padding:"0 1.25rem" }}>
 
         <h1 style={{ ...S.displayTitle, color:"#e02121", textShadow:"0 5px 18px rgba(0,0,0,0.35)", animation:"slideDown 0.65s cubic-bezier(.34,1.56,.64,1) both", marginBottom:12 }}>
-          Will you be my<br/>Valentine, {name || "cutie"}? 💕
+          {question}, {name || "cutie"}? 💕
         </h1>
 
         {noEscapes > 0 && (
