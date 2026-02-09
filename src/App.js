@@ -297,7 +297,7 @@ function useTracking(linkId) {
     }
   }, [linkId, loadTracking]);
 
-  return { trackingData, isLoading, saveTracking, loadTracking };
+  return { trackingData, isLoading, saveTracking };
 }
 
 // ─── Main App ───────────────────────────────────────────────────
@@ -322,7 +322,7 @@ export default function App() {
   const { burst, ConfettiCanvas }         = useConfetti();
   const playSuccessSound                  = useSuccessSound();
   const playDodgeSound                    = useDodgeSound();
-  const { trackingData, saveTracking, loadTracking } = useTracking(linkId);
+  const { trackingData, saveTracking }    = useTracking(linkId);
 
   // Question presets
   const questionPresets = [
@@ -539,13 +539,13 @@ export default function App() {
 
             {generatedLink && (
               <div style={S.linkResultCard}>
-                <p style={S.linkLabel}> Link ready! Send this to {name.trim()}:</p>
+                <p style={S.linkLabel}>✨ Link ready! Send this to {name.trim()}:</p>
                 <div style={S.linkBox}>
                   <span style={S.linkText}>{generatedLink}</span>
                 </div>
                 <div style={S.buttonGroup}>
-                  <button onClick={handleCopyLink} style={S.copyBtn}>Copy Link </button>
-                  <button onClick={() => setStage("prank")} style={S.previewBtn}>Preview </button>
+                  <button onClick={handleCopyLink} style={S.copyBtn}>Copy Link 📋</button>
+                  <button onClick={() => setStage("prank")} style={S.previewBtn}>Preview 👁️</button>
                 </div>
                 
                 {/* Tracking Status */}
@@ -821,25 +821,27 @@ const S = {
     letterSpacing:"0.02em",
     textTransform:"uppercase",
   },
-input: {
-  width: "100%",
-  padding: "1rem 1.25rem",
-  fontSize: "16px",
-  fontFamily: "'Sacramento', cursive",         
-  fontWeight: 400,                               
-  border: "2px solid rgba(233,30,99,0.15)",
-  borderRadius: 12,
-  background: "rgba(255,255,255,0.8)",
-  outline: "none",
-  boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-  transition: "all 0.3s ease",
-  WebkitAppearance: "none",
-  MozAppearance: "none",
-  appearance: "none",
-  touchAction: "manipulation",
-  boxSizing: "border-box",
-  color: "#e91e63",
-},
+
+  input: {
+    width: "100%",
+    padding: "1rem 1.25rem",
+    fontSize: "16px",
+    fontFamily: "'Sacramento', cursive",         
+    fontWeight: 400,                               
+    border: "2px solid rgba(233,30,99,0.15)",
+    borderRadius: 12,
+    background: "rgba(255,255,255,0.8)",
+    outline: "none",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+    transition: "all 0.3s ease",
+    WebkitAppearance: "none",
+    MozAppearance: "none",
+    appearance: "none",
+    touchAction: "manipulation",
+    boxSizing: "border-box",
+    color: "#e91e63",
+  },
+
   inputName: {
     width:"100%",
     padding:"1rem 1.25rem",
@@ -1262,19 +1264,6 @@ input: {
     borderRadius:20,
     border:"2px solid rgba(233,30,99,0.15)",
     marginBottom:24,
-  },
-
-  escapeIconLarge: {
-    fontSize:"3rem",
-    marginBottom:12,
-  },
-
-  escapeText: {
-    margin:0,
-    color:"#ad1457",
-    fontSize:"1.05rem",
-    fontWeight:600,
-    lineHeight:1.6,
   },
 
   escapeSubtext: {
