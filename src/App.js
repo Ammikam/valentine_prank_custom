@@ -6,8 +6,14 @@ function getParams() {
   return { 
     to: p.get("to") || "", 
     msg: p.get("msg") || "",
-    q: p.get("q") || ""
+    q: p.get("q") || "",
+    id: p.get("id") || ""
   };
+}
+
+// ─── Generate unique ID ─────────────────────────────────────────
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
 
 // ─── Google Font loader ─────────────────────────────────────────
@@ -137,28 +143,35 @@ function Toast({ show, children }) {
   );
 }
 
+// ─── Character Counter ──────────────────────────────────────────
+function CharCounter({ current, max, style = {} }) {
+  const percentage = (current / max) * 100;
+  const color = percentage > 90 ? "#f44336" : percentage > 75 ? "#ff9800" : "#4caf50";
+  return (
+    <div style={{ fontSize:"0.75rem", color, fontWeight:600, marginTop:4, textAlign:"right", ...style }}>
+      {current}/{max}
+    </div>
+  );
+}
+
 // ─── Sound Effect Hook ──────────────────────────────────────────
 function useSuccessSound() {
   const audioRef = useRef(null);
 
   useEffect(() => {
-    // Create AudioContext for better mobile support
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     
     const playSound = () => {
-      // Create a sweet "ting" sound using Web Audio API
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
       
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
       
-      // Sweet bell-like tone
       oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
       oscillator.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.1);
       oscillator.frequency.exponentialRampToValueAtTime(600, audioContext.currentTime + 0.3);
       
-      // Fade out envelope
       gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
       
@@ -168,7 +181,6 @@ function useSuccessSound() {
     
     audioRef.current = playSound;
     
-    // Resume audio context on first user interaction (required for mobile)
     const resumeAudio = () => {
       if (audioContext.state === 'suspended') {
         audioContext.resume();
@@ -186,6 +198,74 @@ function useSuccessSound() {
   return () => audioRef.current?.();
 }
 
+// ─── Response Tracking Hook ─────────────────────────────────────
+function useTracking(linkId) {
+  const [trackingData, setTrackingData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const saveTracking = useCallback(async (id, action, data = {}) => {
+    if (!id) return;
+    
+    try {
+      const storageKey = `prank_${id}`;
+      const existing = await window.storage?.get(storageKey, true);
+      
+      const trackingInfo = existing ? JSON.parse(existing.value) : {
+        id,
+        created: Date.now(),
+        opened: null,
+        answered: null,
+        noEscapes: 0,
+      };
+
+      if (action === "open" && !trackingInfo.opened) {
+        trackingInfo.opened = Date.now();
+      } else if (action === "yes") {
+        trackingInfo.answered = Date.now();
+        trackingInfo.noEscapes = data.noEscapes || 0;
+      } else if (action === "escape") {
+        trackingInfo.noEscapes = data.noEscapes || 0;
+      }
+
+      await window.storage?.set(storageKey, JSON.stringify(trackingInfo), true);
+      return trackingInfo;
+    } catch (err) {
+      console.log("Tracking not available:", err);
+      return null;
+    }
+  }, []);
+
+  const loadTracking = useCallback(async (id) => {
+    if (!id) return;
+    
+    setIsLoading(true);
+    try {
+      const storageKey = `prank_${id}`;
+      const result = await window.storage?.get(storageKey, true);
+      
+      if (result?.value) {
+        setTrackingData(JSON.parse(result.value));
+      }
+    } catch (err) {
+      console.log("Could not load tracking:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (linkId) {
+      loadTracking(linkId);
+      
+      // Poll for updates every 3 seconds
+      const interval = setInterval(() => loadTracking(linkId), 3000);
+      return () => clearInterval(interval);
+    }
+  }, [linkId, loadTracking]);
+
+  return { trackingData, isLoading, saveTracking, loadTracking };
+}
+
 // ─── Main App ───────────────────────────────────────────────────
 export default function App() {
   useFontLoad();
@@ -200,12 +280,38 @@ export default function App() {
   const [noEscapes, setNoEscapes]         = useState(0);
   const [yesScale, setYesScale]           = useState(1);
   const [showToast, setShowToast]         = useState(false);
+  const [toastMessage, setToastMessage]   = useState("");
   const [generatedLink, setGeneratedLink] = useState("");
+  const [linkId, setLinkId]               = useState(params.id || "");
   const arenaRef                          = useRef(null);
   const { burst, ConfettiCanvas }         = useConfetti();
   const playSuccessSound                  = useSuccessSound();
+  const { trackingData, saveTracking, loadTracking } = useTracking(linkId);
 
-  // ── No-button dodge (improved with better mobile touch handling) ──
+  // Question presets
+  const questionPresets = [
+    "Will you join me for a coffee date",
+    "Want to grab dinner with me",
+    "Will you be my Valentine",
+    "Can I take you out sometime",
+    "Would you go on a date with me",
+    "Want to hang out this weekend",
+  ];
+
+  // Track when prank is opened
+  useEffect(() => {
+    if (stage === "prank" && params.id) {
+      saveTracking(params.id, "open");
+    }
+  }, [stage, params.id, saveTracking]);
+
+  // Track escape attempts
+  useEffect(() => {
+    if (noEscapes > 0 && params.id) {
+      saveTracking(params.id, "escape", { noEscapes });
+    }
+  }, [noEscapes, params.id, saveTracking]);
+
   const dodge = useCallback((clientX, clientY) => {
     const el = arenaRef.current;
     if (!el) return;
@@ -213,7 +319,6 @@ export default function App() {
     const W = rect.width;
     const H = rect.height;
     
-    // Adaptive button size based on screen
     const bw = window.innerWidth < 400 ? 100 : 120;
     const bh = 48;
     const pad = 16;
@@ -244,10 +349,15 @@ export default function App() {
     if (noEscapes > 0) setYesScale(Math.min(1 + noEscapes * 0.055, 2.5));
   }, [noEscapes]);
 
-  // ── Link generation ──
   const handleGenerateLink = () => {
+    const id = generateId();
     const base = window.location.origin + window.location.pathname;
-    setGeneratedLink(`${base}?to=${encodeURIComponent(name.trim())}&msg=${encodeURIComponent(customMessage)}&q=${encodeURIComponent(question)}`);
+    const link = `${base}?to=${encodeURIComponent(name.trim())}&msg=${encodeURIComponent(customMessage)}&q=${encodeURIComponent(question)}&id=${id}`;
+    setGeneratedLink(link);
+    setLinkId(id);
+    
+    // Initialize tracking
+    saveTracking(id, "create");
   };
 
   const handleCopyLink = async () => {
@@ -260,14 +370,29 @@ export default function App() {
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
+    setToastMessage("✓ Link copied!");
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2400);
   };
 
   const handleReset = () => {
     setStage("input"); setNoEscapes(0);
-    setNoPos({ x:0, y:0 }); setYesScale(1); setGeneratedLink("");
+    setNoPos({ x:0, y:0 }); setYesScale(1); setGeneratedLink(""); setLinkId("");
     window.history.replaceState({}, "", window.location.pathname);
+  };
+
+  const handleYesClick = () => {
+    playSuccessSound();
+    
+    // Save the "yes" response
+    if (params.id) {
+      saveTracking(params.id, "yes", { noEscapes });
+    }
+    
+    setTimeout(() => {
+      setStage("celebration"); 
+      burst();
+    }, 100);
   };
 
   // ─────────────────── RENDER ─────────────────────────────────
@@ -293,14 +418,37 @@ export default function App() {
               style={S.input}
               maxLength={30}
             />
+            <CharCounter current={name.length} max={30} />
+
+            {/* Question Presets */}
+            <div style={S.presetsLabel}>Quick questions:</div>
+            <div style={S.presetsGrid}>
+              {questionPresets.map((preset, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setQuestion(preset)}
+                  style={{
+                    ...S.presetBtn,
+                    background: question === preset ? "linear-gradient(90deg,#ff4081,#f50057)" : "rgba(255,255,255,0.95)",
+                    color: question === preset ? "#fff" : "#e91e63",
+                    border: question === preset ? "2px solid #f50057" : "2px solid #ffb6c1",
+                  }}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+
             <input
               type="text"
-              placeholder="Your question (e.g., Will you join me for coffee?)"
+              placeholder="Or type your own question…"
               value={question}
               onChange={e => { setQuestion(e.target.value); setGeneratedLink(""); }}
-              style={S.input}
+              style={{ ...S.input, marginTop: 12 }}
               maxLength={100}
             />
+            <CharCounter current={question.length} max={100} />
+
             <input
               type="text"
               placeholder="Celebration message…"
@@ -309,6 +457,7 @@ export default function App() {
               style={S.input}
               maxLength={80}
             />
+            <CharCounter current={customMessage.length} max={80} />
           </div>
 
           {!generatedLink && (
@@ -334,11 +483,35 @@ export default function App() {
               </div>
               <button onClick={handleCopyLink} style={S.copyBtn}>Copy Link 📋</button>
               <button onClick={() => setStage("prank")} style={S.ghostBtn}>Preview prank →</button>
+              
+              {/* Tracking Status */}
+              {trackingData && (
+                <div style={S.trackingCard}>
+                  <div style={S.trackingTitle}>📊 Link Status</div>
+                  <div style={S.trackingItem}>
+                    <span style={S.trackingLabel}>Opened:</span>
+                    <span style={S.trackingValue}>
+                      {trackingData.opened ? "✓ Yes" : "Not yet"}
+                    </span>
+                  </div>
+                  {trackingData.opened && !trackingData.answered && (
+                    <div style={S.trackingItem}>
+                      <span style={S.trackingLabel}>Escape attempts:</span>
+                      <span style={S.trackingValue}>{trackingData.noEscapes || 0}</span>
+                    </div>
+                  )}
+                  {trackingData.answered && (
+                    <div style={{ ...S.trackingItem, background:"rgba(76,175,80,0.1)", padding:"0.75rem", borderRadius:8, marginTop:8 }}>
+                      <span style={{ fontSize:"1.1rem" }}>🎉 They said YES!</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        <Toast show={showToast}>✓ Link copied!</Toast>
+        <Toast show={showToast}>{toastMessage}</Toast>
         {ConfettiCanvas}
         <style>{`@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}`}</style>
       </div>
@@ -396,7 +569,6 @@ export default function App() {
           </p>
         )}
 
-        {/* Arena – the bounded box where No dodges inside */}
         <div
           ref={arenaRef}
           onMouseMove={onInteract}
@@ -404,15 +576,8 @@ export default function App() {
           onTouchStart={onInteract}
           style={S.arena}
         >
-          {/* YES */}
           <button
-            onClick={() => { 
-              playSuccessSound();
-              setTimeout(() => {
-                setStage("celebration"); 
-                burst();
-              }, 100); // Small delay for sound to start before confetti
-            }}
+            onClick={handleYesClick}
             style={{
               ...S.yesBtn,
               transform:`scale(${yesScale})`,
@@ -431,7 +596,6 @@ export default function App() {
             Yes! 💖
           </button>
 
-          {/* NO – dodges */}
           <button
             onMouseEnter={onInteract}
             onTouchStart={onInteract}
@@ -512,14 +676,14 @@ const S = {
 
   inputWrapper: {
     width:"100%",
-    padding:"0 clamp(0.5rem, 2vw, 0rem)",  // Extra padding on small screens
+    padding:"0 clamp(0.5rem, 2vw, 0rem)",
   },
 
   input: {
     width:"100%",
     padding:"0.95rem 1.4rem",
     margin:"0.5rem 0",
-    fontSize:"16px",                  // 16px prevents iOS zoom
+    fontSize:"16px",
     border:"2px solid #ffb6c1",
     borderRadius:12,
     background:"rgba(255,255,255,0.95)",
@@ -531,6 +695,40 @@ const S = {
     appearance:"none",
     touchAction:"manipulation",
     boxSizing:"border-box",
+  },
+
+  presetsLabel: {
+    fontSize:"0.85rem",
+    color:"#ad1457",
+    fontWeight:600,
+    marginTop:16,
+    marginBottom:8,
+    textAlign:"left",
+    width:"100%",
+  },
+
+  presetsGrid: {
+    display:"grid",
+    gridTemplateColumns:"1fr 1fr",
+    gap:8,
+    width:"100%",
+    marginBottom:8,
+  },
+
+  presetBtn: {
+    padding:"0.7rem 0.9rem",
+    fontSize:"0.8rem",
+    fontWeight:600,
+    borderRadius:10,
+    cursor:"pointer",
+    transition:"all 0.2s",
+    textAlign:"center",
+    lineHeight:1.3,
+    minHeight:52,
+    display:"flex",
+    alignItems:"center",
+    justifyContent:"center",
+    touchAction:"manipulation",
   },
 
   primaryBtn: {
@@ -621,6 +819,39 @@ const S = {
     transition:"all 0.2s",
   },
 
+  trackingCard: {
+    marginTop:16,
+    padding:"1rem",
+    background:"rgba(233,30,99,0.05)",
+    borderRadius:12,
+    border:"1.5px solid #f48fb1",
+  },
+
+  trackingTitle: {
+    fontSize:"0.85rem",
+    fontWeight:700,
+    color:"#ad1457",
+    marginBottom:8,
+    textAlign:"center",
+  },
+
+  trackingItem: {
+    display:"flex",
+    justifyContent:"space-between",
+    padding:"0.5rem 0",
+    fontSize:"0.85rem",
+  },
+
+  trackingLabel: {
+    color:"#666",
+    fontWeight:500,
+  },
+
+  trackingValue: {
+    color:"#e91e63",
+    fontWeight:700,
+  },
+
   escapeCounter: {
     marginTop:20,
     padding:"0.85rem 1.4rem",
@@ -631,7 +862,6 @@ const S = {
     backdropFilter:"blur(8px)",
   },
 
-  // The bounded arena where Yes sits centered and No dodges inside
   arena: {
     position:"relative",
     width:"100%",
