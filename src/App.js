@@ -20,7 +20,7 @@ function generateId() {
 function useFontLoad() {
   useEffect(() => {
     const link = document.createElement("link");
-    link.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&display=swap";
+    link.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Dancing+Script:wght@600;700&family=Satisfy&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
     return () => document.head.removeChild(link);
@@ -275,7 +275,7 @@ export default function App() {
   const [stage, setStage]                 = useState(initialStage);
   const [name, setName]                   = useState(params.to || "");
   const [customMessage, setCustomMessage] = useState(params.msg || "I KNEW YOU'D SAY YES! 💖");
-  const [question, setQuestion]           = useState(params.q || "Will you join me for a coffee date");
+  const [question, setQuestion]           = useState(params.q || "Will you be my Valentine?");
   const [noPos, setNoPos]                 = useState({ x: 0, y: 0 });
   const [noEscapes, setNoEscapes]         = useState(0);
   const [yesScale, setYesScale]           = useState(1);
@@ -402,113 +402,133 @@ export default function App() {
     return (
       <div style={S.screen}>
         <FloatingHearts count={10} emoji="💗" />
-        <div style={S.inputCard}>
-          <div style={{ fontSize:"2.8rem", marginBottom:4, animation:"pulse 1.1s ease-in-out infinite" }}>💝</div>
-          <h1 style={{ ...S.displayTitle, color:"#e91e63", textShadow:"0 3px 14px rgba(233,30,99,0.4)" }}>
-            Create Your<br/>Valentine Prank
-          </h1>
-          <p style={S.subtitle}>They'll never see this screen 😈</p>
-
-          <div style={S.inputWrapper}>
-            <input
-              type="text"
-              placeholder="Their name or nickname…"
-              value={name}
-              onChange={e => { setName(e.target.value); setGeneratedLink(""); }}
-              style={S.input}
-              maxLength={30}
-            />
-            <CharCounter current={name.length} max={30} />
-
-            {/* Question Presets */}
-            <div style={S.presetsLabel}>Quick questions:</div>
-            <div style={S.presetsGrid}>
-              {questionPresets.map((preset, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setQuestion(preset)}
-                  style={{
-                    ...S.presetBtn,
-                    background: question === preset ? "linear-gradient(90deg,#ff4081,#f50057)" : "rgba(255,255,255,0.95)",
-                    color: question === preset ? "#fff" : "#e91e63",
-                    border: question === preset ? "2px solid #f50057" : "2px solid #ffb6c1",
-                  }}
-                >
-                  {preset}
-                </button>
-              ))}
-            </div>
-
-            <input
-              type="text"
-              placeholder="Or type your own question…"
-              value={question}
-              onChange={e => { setQuestion(e.target.value); setGeneratedLink(""); }}
-              style={{ ...S.input, marginTop: 12 }}
-              maxLength={100}
-            />
-            <CharCounter current={question.length} max={100} />
-
-            <input
-              type="text"
-              placeholder="Celebration message…"
-              value={customMessage}
-              onChange={e => { setCustomMessage(e.target.value); setGeneratedLink(""); }}
-              style={S.input}
-              maxLength={80}
-            />
-            <CharCounter current={customMessage.length} max={80} />
+        
+        {/* Card Modal */}
+        <div style={S.modalCard}>
+          <div style={S.cardHeader}>
+            <div style={{ fontSize:"3.2rem", marginBottom:8, animation:"pulse 1.1s ease-in-out infinite" }}>💝</div>
+            <h1 style={S.cardTitle}>
+              Create Your<br/>Valentine Prank
+            </h1>
+            <p style={S.cardSubtitle}>They'll never see this screen 😈</p>
           </div>
 
-          {!generatedLink && (
-            <button
-              onClick={handleGenerateLink}
-              disabled={!name.trim()}
-              style={{ 
-                ...S.primaryBtn, 
-                opacity: name.trim() ? 1 : 0.5, 
-                cursor: name.trim() ? "pointer" : "not-allowed",
-                transform: name.trim() ? "scale(1)" : "scale(0.98)"
-              }}
-            >
-              Generate Link →
-            </button>
-          )}
-
-          {generatedLink && (
-            <div style={S.linkCard}>
-              <p style={S.linkLabel}>✨ Link ready! Send this to {name.trim()}:</p>
-              <div style={S.linkBox}>
-                <span style={S.linkText}>{generatedLink}</span>
-              </div>
-              <button onClick={handleCopyLink} style={S.copyBtn}>Copy Link 📋</button>
-              <button onClick={() => setStage("prank")} style={S.ghostBtn}>Preview prank →</button>
-              
-              {/* Tracking Status */}
-              {trackingData && (
-                <div style={S.trackingCard}>
-                  <div style={S.trackingTitle}>📊 Link Status</div>
-                  <div style={S.trackingItem}>
-                    <span style={S.trackingLabel}>Opened:</span>
-                    <span style={S.trackingValue}>
-                      {trackingData.opened ? "✓ Yes" : "Not yet"}
-                    </span>
-                  </div>
-                  {trackingData.opened && !trackingData.answered && (
-                    <div style={S.trackingItem}>
-                      <span style={S.trackingLabel}>Escape attempts:</span>
-                      <span style={S.trackingValue}>{trackingData.noEscapes || 0}</span>
-                    </div>
-                  )}
-                  {trackingData.answered && (
-                    <div style={{ ...S.trackingItem, background:"rgba(76,175,80,0.1)", padding:"0.75rem", borderRadius:8, marginTop:8 }}>
-                      <span style={{ fontSize:"1.1rem" }}>🎉 They said YES!</span>
-                    </div>
-                  )}
-                </div>
-              )}
+          <div style={S.cardBody}>
+            <div style={S.inputGroup}>
+              <label style={S.label}>Their Name</label>
+              <input
+                type="text"
+                placeholder="Sweetheart..."
+                value={name}
+                onChange={e => { setName(e.target.value); setGeneratedLink(""); }}
+                style={S.input}
+                maxLength={30}
+              />
+              <CharCounter current={name.length} max={30} />
             </div>
-          )}
+
+            <div style={S.inputGroup}>
+              <label style={S.label}>Quick Questions</label>
+              <div style={S.presetsGrid}>
+                {questionPresets.map((preset, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setQuestion(preset)}
+                    style={{
+                      ...S.presetBtn,
+                      background: question === preset ? "linear-gradient(135deg,#ff4081,#f50057)" : "rgba(255,255,255,0.7)",
+                      color: question === preset ? "#fff" : "#e91e63",
+                      border: question === preset ? "2px solid #f50057" : "2px solid rgba(233,30,99,0.2)",
+                      boxShadow: question === preset ? "0 4px 12px rgba(245,0,87,0.3)" : "0 2px 8px rgba(0,0,0,0.05)",
+                    }}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={S.inputGroup}>
+              <label style={S.label}>Custom Question</label>
+              <input
+                type="text"
+                placeholder="Or write your own..."
+                value={question}
+                onChange={e => { setQuestion(e.target.value); setGeneratedLink(""); }}
+                style={S.input}
+                maxLength={100}
+              />
+              <CharCounter current={question.length} max={100} />
+            </div>
+
+            <div style={S.inputGroup}>
+              <label style={S.label}>Celebration Message</label>
+              <input
+                type="text"
+                placeholder="I knew you'd say yes! 💖"
+                value={customMessage}
+                onChange={e => { setCustomMessage(e.target.value); setGeneratedLink(""); }}
+                style={S.input}
+                maxLength={80}
+              />
+              <CharCounter current={customMessage.length} max={80} />
+            </div>
+
+            {!generatedLink && (
+              <button
+                onClick={handleGenerateLink}
+                disabled={!name.trim()}
+                style={{ 
+                  ...S.primaryBtn, 
+                  opacity: name.trim() ? 1 : 0.5, 
+                  cursor: name.trim() ? "pointer" : "not-allowed",
+                  transform: name.trim() ? "scale(1)" : "scale(0.98)"
+                }}
+              >
+                Generate Magic Link ✨
+              </button>
+            )}
+
+            {generatedLink && (
+              <div style={S.linkResultCard}>
+                <p style={S.linkLabel}>🎉 Link ready! Send this to {name.trim()}:</p>
+                <div style={S.linkBox}>
+                  <span style={S.linkText}>{generatedLink}</span>
+                </div>
+                <div style={S.buttonGroup}>
+                  <button onClick={handleCopyLink} style={S.copyBtn}>Copy Link 📋</button>
+                  <button onClick={() => setStage("prank")} style={S.previewBtn}>Preview 👀</button>
+                </div>
+                
+                {/* Tracking Status */}
+                {trackingData && (
+                  <div style={S.trackingCard}>
+                    <div style={S.trackingTitle}>📊 Link Status</div>
+                    <div style={S.trackingGrid}>
+                      <div style={S.trackingItem}>
+                        <span style={S.trackingLabel}>Opened:</span>
+                        <span style={{...S.trackingValue, color: trackingData.opened ? "#4caf50" : "#999"}}>
+                          {trackingData.opened ? "✓ Yes" : "Not yet"}
+                        </span>
+                      </div>
+                      {trackingData.opened && !trackingData.answered && (
+                        <div style={S.trackingItem}>
+                          <span style={S.trackingLabel}>Escape attempts:</span>
+                          <span style={S.trackingValue}>{trackingData.noEscapes || 0}</span>
+                        </div>
+                      )}
+                    </div>
+                    {trackingData.answered && (
+                      <div style={S.successBadge}>
+                        <span style={{ fontSize:"1.5rem", marginRight:8 }}>🎉</span>
+                        They said YES!
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <Toast show={showToast}>{toastMessage}</Toast>
@@ -521,33 +541,58 @@ export default function App() {
   // ── CELEBRATION ─────────────────────────────────────────────
   if (stage === "celebration") {
     return (
-      <div style={{ ...S.screen, background:"linear-gradient(145deg,#6a1b9a 0%,#ec407a 55%,#e91e63 100%)" }}>
+      <div style={S.celebrationScreen}>
         <FloatingHearts count={30} emoji="❤️" />
-        <div style={{ position:"relative", zIndex:2, textAlign:"center", padding:"0 1.5rem", maxWidth:500 }}>
-          <div style={{ fontSize:"3.5rem", marginBottom:12, animation:"pulse 0.55s ease-in-out infinite" }}>💝</div>
-          <h1 style={{ ...S.displayTitle, color:"#fff", textShadow:"0 4px 22px rgba(0,0,0,0.32)", animation:"popIn 0.5s cubic-bezier(.34,1.56,.64,1) both" }}>
+        
+        <div style={S.celebrationContent}>
+          <div style={S.celebrationIconWrapper}>
+            <div style={S.celebrationIcon}>💝</div>
+            <div style={S.celebrationRing}></div>
+            <div style={S.celebrationRing2}></div>
+          </div>
+          
+          <h1 style={S.celebrationTitle}>
             {customMessage}
           </h1>
-          <p style={{ color:"rgba(255,255,255,0.95)", fontSize:"clamp(1.15rem,4.5vw,1.7rem)", marginTop:16, fontFamily:"system-ui,sans-serif", lineHeight:1.4 }}>
+          
+          <p style={S.celebrationSubtitle}>
             You're the best, {name || "cutie"}! 🥰
           </p>
+          
           {noEscapes > 0 && (
-            <div style={S.escapeCounter}>
-              <p style={{ margin:0, fontSize:"0.95rem" }}>
-                😂 "No" tried to escape <strong>{noEscapes}</strong> time{noEscapes !== 1 ? "s" : ""}!
+            <div style={S.escapeStats}>
+              <div style={S.escapeIcon}>😂</div>
+              <p style={S.escapeText}>
+                "No" tried to escape <strong>{noEscapes}</strong> time{noEscapes !== 1 ? "s" : ""}!
               </p>
             </div>
           )}
+          
           {!params.to && (
-            <button onClick={handleReset} style={{ ...S.primaryBtn, marginTop:32, background:"linear-gradient(90deg,#00c853,#00b140)" }}>
-              ← Back to Setup
+            <button onClick={handleReset} style={S.backBtn}>
+              ← Create Another Prank
             </button>
           )}
         </div>
+        
         {ConfettiCanvas}
         <style>{`
-          @keyframes popIn{0%{transform:scale(0.45);opacity:0}100%{transform:scale(1);opacity:1}}
-          @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}
+          @keyframes popIn {
+            0% { transform: scale(0.45); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+          }
+          @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.22); }
+          }
+          @keyframes ripple {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(2); opacity: 0; }
+          }
+          @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+          }
         `}</style>
       </div>
     );
@@ -641,129 +686,138 @@ const S = {
     color:"#2d1b24",
     paddingTop:"env(safe-area-inset-top, 0px)",
     paddingBottom:"env(safe-area-inset-bottom, 0px)",
+    padding:"clamp(1rem, 3vw, 2rem)",
   },
 
-  displayTitle: {
+  modalCard: {
+    position:"relative",
+    zIndex:2,
+    width:"100%",
+    maxWidth:480,
+    background:"rgba(255,255,255,0.95)",
+    backdropFilter:"blur(20px)",
+    borderRadius:24,
+    boxShadow:"0 20px 60px rgba(233,30,99,0.25), 0 0 0 1px rgba(255,255,255,0.5)",
+    overflow:"hidden",
+    animation:"slideUp 0.6s cubic-bezier(.34,1.56,.64,1)",
+  },
+
+  cardHeader: {
+    padding:"2rem 1.5rem 1.5rem",
+    background:"linear-gradient(135deg, #ff6b9d 0%, #ff1744 100%)",
+    color:"#fff",
+    textAlign:"center",
+    position:"relative",
+  },
+
+  cardTitle: {
     fontFamily:"'Playfair Display', Georgia, serif",
     fontWeight:800,
-    fontSize:"clamp(1.85rem, 7.8vw, 3.6rem)",
-    lineHeight:1.14,
-    textAlign:"center",
-    marginBottom:10,
-    letterSpacing:"-0.015em",
+    fontSize:"clamp(1.85rem, 6vw, 2.5rem)",
+    lineHeight:1.2,
+    margin:"0 0 0.5rem 0",
+    textShadow:"0 2px 12px rgba(0,0,0,0.2)",
   },
 
-  subtitle: {
-    color:"#ad1457",
-    opacity:0.75,
-    marginBottom:28,
+  cardSubtitle: {
     fontSize:"0.95rem",
-    textAlign:"center",
-    fontFamily:"system-ui,sans-serif",
+    opacity:0.9,
+    margin:0,
     fontWeight:500,
   },
 
-  inputCard: {
-    position:"relative",
-    zIndex:2,
-    display:"flex",
-    flexDirection:"column",
-    alignItems:"center",
-    width:"100%",
-    maxWidth:440,
-    padding:"clamp(1rem, 3vw, 1.75rem) clamp(1.25rem, 4vw, 1.5rem)",
+  cardBody: {
+    padding:"1.75rem 1.5rem 2rem",
   },
 
-  inputWrapper: {
-    width:"100%",
-    padding:"0 clamp(0.5rem, 2vw, 0rem)",
+  inputGroup: {
+    marginBottom:"1.5rem",
+  },
+
+  label: {
+    display:"block",
+    fontSize:"0.85rem",
+    fontWeight:700,
+    color:"#ad1457",
+    marginBottom:"0.5rem",
+    letterSpacing:"0.02em",
+    textTransform:"uppercase",
   },
 
   input: {
     width:"100%",
-    padding:"0.95rem 1.4rem",
-    margin:"0.5rem 0",
+    padding:"1rem 1.25rem",
     fontSize:"16px",
-    border:"2px solid #ffb6c1",
+    fontFamily:"'Dancing Script', cursive",
+    fontWeight:600,
+    border:"2px solid rgba(233,30,99,0.15)",
     borderRadius:12,
-    background:"rgba(255,255,255,0.95)",
+    background:"rgba(255,255,255,0.8)",
     outline:"none",
     boxShadow:"0 2px 8px rgba(0,0,0,0.04)",
-    transition:"border-color 0.25s, box-shadow 0.25s, transform 0.2s",
+    transition:"all 0.3s ease",
     WebkitAppearance:"none",
     MozAppearance:"none",
     appearance:"none",
     touchAction:"manipulation",
     boxSizing:"border-box",
-  },
-
-  presetsLabel: {
-    fontSize:"0.85rem",
-    color:"#ad1457",
-    fontWeight:600,
-    marginTop:16,
-    marginBottom:8,
-    textAlign:"left",
-    width:"100%",
+    color:"#e91e63",
   },
 
   presetsGrid: {
     display:"grid",
     gridTemplateColumns:"1fr 1fr",
-    gap:8,
-    width:"100%",
-    marginBottom:8,
+    gap:10,
+    marginTop:8,
   },
 
   presetBtn: {
-    padding:"0.7rem 0.9rem",
-    fontSize:"0.8rem",
+    padding:"0.75rem 0.5rem",
+    fontSize:"0.75rem",
     fontWeight:600,
     borderRadius:10,
     cursor:"pointer",
-    transition:"all 0.2s",
+    transition:"all 0.25s cubic-bezier(.34,1.56,.64,1)",
     textAlign:"center",
     lineHeight:1.3,
-    minHeight:52,
+    minHeight:56,
     display:"flex",
     alignItems:"center",
     justifyContent:"center",
     touchAction:"manipulation",
+    fontFamily:"system-ui, sans-serif",
   },
 
   primaryBtn: {
     width:"100%",
-    maxWidth:340,
-    padding:"1rem 1.6rem",
-    fontSize:"1.1rem",
+    padding:"1.1rem 1.6rem",
+    fontSize:"1.05rem",
     fontWeight:700,
     color:"#fff",
-    background:"linear-gradient(90deg,#ff4081,#f50057)",
+    background:"linear-gradient(135deg,#ff4081,#f50057)",
     border:"none",
     borderRadius:12,
     cursor:"pointer",
     boxShadow:"0 8px 24px rgba(245,0,87,0.35)",
-    transition:"transform 0.25s, box-shadow 0.25s, opacity 0.25s",
-    marginTop:20,
-    minHeight:52,
+    transition:"all 0.3s cubic-bezier(.34,1.56,.64,1)",
+    marginTop:8,
     touchAction:"manipulation",
+    fontFamily:"system-ui, sans-serif",
   },
 
-  linkCard: {
-    marginTop:24,
-    width:"100%",
-    background:"rgba(255,255,255,0.92)",
-    borderRadius:20,
-    padding:"1.35rem 1.15rem",
-    boxShadow:"0 8px 28px rgba(233,30,99,0.12)",
-    border:"2px solid #ffcdd2",
+  linkResultCard: {
+    marginTop:20,
+    padding:"1.25rem",
+    background:"linear-gradient(135deg, rgba(255,64,129,0.08) 0%, rgba(245,0,87,0.12) 100%)",
+    borderRadius:16,
+    border:"2px solid rgba(233,30,99,0.15)",
   },
 
   linkLabel: {
-    fontSize:"0.88rem",
+    fontSize:"0.9rem",
     color:"#ad1457",
     fontWeight:600,
-    marginBottom:10,
+    marginBottom:12,
     textAlign:"center",
     lineHeight:1.4,
   },
@@ -771,12 +825,11 @@ const S = {
   linkBox: {
     background:"#fff",
     borderRadius:10,
-    padding:"0.75rem 1rem",
-    border:"1.5px solid #f48fb1",
+    padding:"0.85rem 1rem",
+    border:"1.5px solid rgba(233,30,99,0.2)",
     overflowX:"auto",
     marginBottom:12,
     WebkitOverflowScrolling:"touch",
-    maxWidth:"100%",
   },
 
   linkText: {
@@ -787,52 +840,63 @@ const S = {
     lineHeight:1.5,
   },
 
-  copyBtn: {
-    width:"100%",
-    padding:"0.85rem",
-    fontSize:"1.05rem",
-    fontWeight:700,
-    color:"#fff",
-    background:"linear-gradient(90deg,#ff4081,#f50057)",
-    border:"none",
-    borderRadius:12,
-    cursor:"pointer",
-    boxShadow:"0 6px 18px rgba(245,0,87,0.3)",
-    minHeight:52,
-    touchAction:"manipulation",
-    transition:"transform 0.2s, box-shadow 0.2s",
+  buttonGroup: {
+    display:"grid",
+    gridTemplateColumns:"1fr 1fr",
+    gap:10,
   },
 
-  ghostBtn: {
-    width:"100%",
-    padding:"0.75rem",
-    fontSize:"0.92rem",
+  copyBtn: {
+    padding:"0.9rem",
+    fontSize:"0.95rem",
+    fontWeight:700,
+    color:"#fff",
+    background:"linear-gradient(135deg,#ff4081,#f50057)",
+    border:"none",
+    borderRadius:10,
+    cursor:"pointer",
+    boxShadow:"0 4px 16px rgba(245,0,87,0.25)",
+    touchAction:"manipulation",
+    transition:"all 0.25s",
+    fontFamily:"system-ui, sans-serif",
+  },
+
+  previewBtn: {
+    padding:"0.9rem",
+    fontSize:"0.95rem",
     fontWeight:600,
     color:"#e91e63",
-    background:"transparent",
-    border:"2px solid #f48fb1",
-    borderRadius:12,
+    background:"rgba(255,255,255,0.9)",
+    border:"2px solid rgba(233,30,99,0.3)",
+    borderRadius:10,
     cursor:"pointer",
-    marginTop:10,
-    minHeight:48,
     touchAction:"manipulation",
-    transition:"all 0.2s",
+    transition:"all 0.25s",
+    fontFamily:"system-ui, sans-serif",
   },
 
   trackingCard: {
     marginTop:16,
     padding:"1rem",
-    background:"rgba(233,30,99,0.05)",
+    background:"rgba(255,255,255,0.7)",
     borderRadius:12,
-    border:"1.5px solid #f48fb1",
+    border:"1.5px solid rgba(233,30,99,0.15)",
   },
 
   trackingTitle: {
-    fontSize:"0.85rem",
+    fontSize:"0.8rem",
     fontWeight:700,
     color:"#ad1457",
-    marginBottom:8,
+    marginBottom:12,
     textAlign:"center",
+    textTransform:"uppercase",
+    letterSpacing:"0.05em",
+  },
+
+  trackingGrid: {
+    display:"flex",
+    flexDirection:"column",
+    gap:8,
   },
 
   trackingItem: {
@@ -840,6 +904,7 @@ const S = {
     justifyContent:"space-between",
     padding:"0.5rem 0",
     fontSize:"0.85rem",
+    borderBottom:"1px solid rgba(233,30,99,0.1)",
   },
 
   trackingLabel: {
@@ -852,14 +917,142 @@ const S = {
     fontWeight:700,
   },
 
-  escapeCounter: {
-    marginTop:20,
-    padding:"0.85rem 1.4rem",
-    background:"rgba(255,255,255,0.18)",
-    borderRadius:12,
-    border:"1.5px solid rgba(255,255,255,0.3)",
+  successBadge: {
+    marginTop:12,
+    padding:"0.85rem",
+    background:"linear-gradient(135deg, rgba(76,175,80,0.15) 0%, rgba(76,175,80,0.25) 100%)",
+    borderRadius:10,
+    textAlign:"center",
+    color:"#2e7d32",
+    fontWeight:700,
+    fontSize:"0.95rem",
+    display:"flex",
+    alignItems:"center",
+    justifyContent:"center",
+  },
+
+  celebrationScreen: {
+    minHeight:"100dvh",
+    width:"100%",
+    display:"flex",
+    flexDirection:"column",
+    alignItems:"center",
+    justifyContent:"center",
+    background:"linear-gradient(145deg,#6a1b9a 0%,#ec407a 55%,#e91e63 100%)",
+    overflow:"hidden",
+    position:"relative",
+    padding:"2rem 1.5rem",
+  },
+
+  celebrationContent: {
+    position:"relative",
+    zIndex:2,
+    textAlign:"center",
+    maxWidth:500,
+    animation:"popIn 0.6s cubic-bezier(.34,1.56,.64,1)",
+  },
+
+  celebrationIconWrapper: {
+    position:"relative",
+    display:"inline-block",
+    marginBottom:24,
+  },
+
+  celebrationIcon: {
+    fontSize:"5rem",
+    animation:"float 3s ease-in-out infinite",
+    position:"relative",
+    zIndex:2,
+  },
+
+  celebrationRing: {
+    position:"absolute",
+    top:"50%",
+    left:"50%",
+    transform:"translate(-50%, -50%)",
+    width:100,
+    height:100,
+    border:"3px solid rgba(255,255,255,0.5)",
+    borderRadius:"50%",
+    animation:"ripple 2s ease-out infinite",
+  },
+
+  celebrationRing2: {
+    position:"absolute",
+    top:"50%",
+    left:"50%",
+    transform:"translate(-50%, -50%)",
+    width:100,
+    height:100,
+    border:"3px solid rgba(255,255,255,0.3)",
+    borderRadius:"50%",
+    animation:"ripple 2s ease-out infinite 0.5s",
+  },
+
+  celebrationTitle: {
+    fontFamily:"'Playfair Display', Georgia, serif",
+    fontWeight:800,
+    fontSize:"clamp(2rem, 7vw, 3.5rem)",
+    lineHeight:1.2,
     color:"#fff",
-    backdropFilter:"blur(8px)",
+    textShadow:"0 4px 24px rgba(0,0,0,0.3)",
+    marginBottom:16,
+  },
+
+  celebrationSubtitle: {
+    color:"rgba(255,255,255,0.95)",
+    fontSize:"clamp(1.15rem, 4.5vw, 1.7rem)",
+    fontFamily:"'Satisfy', cursive",
+    lineHeight:1.4,
+    marginBottom:24,
+  },
+
+  escapeStats: {
+    marginTop:24,
+    padding:"1.25rem 1.5rem",
+    background:"rgba(255,255,255,0.15)",
+    borderRadius:16,
+    border:"2px solid rgba(255,255,255,0.25)",
+    backdropFilter:"blur(10px)",
+    display:"inline-block",
+  },
+
+  escapeIcon: {
+    fontSize:"2rem",
+    marginBottom:8,
+  },
+
+  escapeText: {
+    margin:0,
+    color:"#fff",
+    fontSize:"0.95rem",
+    fontWeight:500,
+  },
+
+  backBtn: {
+    marginTop:32,
+    padding:"1rem 2rem",
+    fontSize:"1rem",
+    fontWeight:700,
+    color:"#fff",
+    background:"linear-gradient(135deg,#00c853,#00b140)",
+    border:"2px solid rgba(255,255,255,0.3)",
+    borderRadius:12,
+    cursor:"pointer",
+    boxShadow:"0 8px 24px rgba(0,0,0,0.2)",
+    transition:"all 0.3s",
+    touchAction:"manipulation",
+    fontFamily:"system-ui, sans-serif",
+  },
+
+  displayTitle: {
+    fontFamily:"'Playfair Display', Georgia, serif",
+    fontWeight:800,
+    fontSize:"clamp(1.85rem, 7.8vw, 3.6rem)",
+    lineHeight:1.14,
+    textAlign:"center",
+    marginBottom:10,
+    letterSpacing:"-0.015em",
   },
 
   arena: {
@@ -891,6 +1084,7 @@ const S = {
     touchAction:"manipulation",
     minHeight:56,
     zIndex:2,
+    fontFamily:"system-ui, sans-serif",
   },
 
   noBtn: {
@@ -909,5 +1103,6 @@ const S = {
     minHeight:52,
     willChange:"transform",
     zIndex:4,
+    fontFamily:"system-ui, sans-serif",
   },
 };
