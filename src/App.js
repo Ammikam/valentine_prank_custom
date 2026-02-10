@@ -1,4 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { ref, set, update, onValue, get } from "firebase/database";
+import { db } from "./firebase";
+
 
 // ─── URL Param Helpers ──────────────────────────────────────────
 function getParams() {
@@ -20,7 +23,7 @@ function generateId() {
 function useFontLoad() {
   useEffect(() => {
     const link = document.createElement("link");
-    link.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Dancing+Script:wght@600;700&family=Satisfy&family=Pacifico&display=swap";
+    link.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Dancing+Script:wght@600;700&family=Satisfy&family=Pacifico&family=Sacramento&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
     return () => document.head.removeChild(link);
@@ -232,70 +235,94 @@ function useDodgeSound() {
   return () => audioRef.current?.();
 }
 
-// ─── Response Tracking Hook ─────────────────────────────────────
+// ─── Firebase Tracking Hook (FIXED) ─────────────────────────────
 function useTracking(linkId) {
   const [trackingData, setTrackingData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Save tracking data to Firebase
   const saveTracking = useCallback(async (id, action, data = {}) => {
-    if (!id) return;
+    if (!id || !db) return;
     
     try {
-      const storageKey = `prank_${id}`;
-      const existing = await window.storage?.get(storageKey, true);
+      const prankRef = ref(db, `pranks/${id}`);
       
-      const trackingInfo = existing ? JSON.parse(existing.value) : {
-        id,
-        created: Date.now(),
-        opened: null,
-        answered: null,
-        noEscapes: 0,
-      };
-
-      if (action === "open" && !trackingInfo.opened) {
-        trackingInfo.opened = Date.now();
-      } else if (action === "yes") {
-        trackingInfo.answered = Date.now();
-        trackingInfo.noEscapes = data.noEscapes || 0;
+      if (action === "create") {
+        // Initialize new prank
+        await set(prankRef, {
+          id,
+          created: Date.now(),
+          opened: null,
+          answered: null,
+          noEscapes: 0,
+          lastUpdated: Date.now(),
+        });
+      } else if (action === "open") {
+        // Mark as opened (only if not already opened)
+        const snapshot = await get(prankRef);
+        if (snapshot.exists() && !snapshot.val().opened) {
+          await update(prankRef, {
+            opened: Date.now(),
+            lastUpdated: Date.now(),
+          });
+        } else if (!snapshot.exists()) {
+          // Create if doesn't exist
+          await set(prankRef, {
+            id,
+            created: Date.now(),
+            opened: Date.now(),
+            answered: null,
+            noEscapes: 0,
+            lastUpdated: Date.now(),
+          });
+        }
       } else if (action === "escape") {
-        trackingInfo.noEscapes = data.noEscapes || 0;
+        // Update escape count
+        await update(prankRef, {
+          noEscapes: data.noEscapes || 0,
+          lastUpdated: Date.now(),
+        });
+      } else if (action === "yes") {
+        // Mark as answered
+        await update(prankRef, {
+          answered: Date.now(),
+          noEscapes: data.noEscapes || 0,
+          lastUpdated: Date.now(),
+        });
       }
-
-      await window.storage?.set(storageKey, JSON.stringify(trackingInfo), true);
-      return trackingInfo;
+      
+      return true;
     } catch (err) {
-      console.log("Tracking not available:", err);
+      console.error("Firebase tracking error:", err);
       return null;
     }
   }, []);
 
-  const loadTracking = useCallback(async (id) => {
-    if (!id) return;
+  // Real-time listener for tracking data
+  useEffect(() => {
+    if (!linkId || !db) return;
     
     setIsLoading(true);
-    try {
-      const storageKey = `prank_${id}`;
-      const result = await window.storage?.get(storageKey, true);
-      
-      if (result?.value) {
-        setTrackingData(JSON.parse(result.value));
-      }
-    } catch (err) {
-      console.log("Could not load tracking:", err);
-    } finally {
+    const prankRef = ref(db, `pranks/${linkId}`);
+    
+    // Set up real-time listener
+    const unsubscribe = onValue(prankRef, (snapshot) => {
       setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (linkId) {
-      loadTracking(linkId);
-      
-      // Poll for updates every 3 seconds
-      const interval = setInterval(() => loadTracking(linkId), 3000);
-      return () => clearInterval(interval);
-    }
-  }, [linkId, loadTracking]);
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        console.log("Firebase data updated:", data); // Debug log
+        setTrackingData(data);
+      } else {
+        setTrackingData(null);
+      }
+    }, (error) => {
+      console.error("Firebase read error:", error);
+      setIsLoading(false);
+    });
+    
+    // Cleanup listener on unmount
+    return () => unsubscribe();
+  }, [linkId]);
 
   return { trackingData, isLoading, saveTracking };
 }
@@ -318,6 +345,10 @@ export default function App() {
   const [generatedLink, setGeneratedLink] = useState("");
   const [linkId, setLinkId]               = useState(params.id || "");
   const [noBtnShake, setNoBtnShake]       = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationText, setNotificationText] = useState("");
+  const prevTrackingRef                   = useRef(null);
+  const hasShownOpenedRef                 = useRef(false);
   const arenaRef                          = useRef(null);
   const { burst, ConfettiCanvas }         = useConfetti();
   const playSuccessSound                  = useSuccessSound();
@@ -334,19 +365,74 @@ export default function App() {
     "Want to hang out this weekend",
   ];
 
-  // Track when prank is opened
+  // Track when prank is opened (FIXED - only runs once)
+  const hasTrackedOpen = useRef(false);
   useEffect(() => {
-    if (stage === "prank" && params.id) {
+    if (stage === "prank" && params.id && !hasTrackedOpen.current) {
+      console.log("Tracking prank open for ID:", params.id);
       saveTracking(params.id, "open");
+      hasTrackedOpen.current = true;
     }
   }, [stage, params.id, saveTracking]);
 
   // Track escape attempts
   useEffect(() => {
     if (noEscapes > 0 && params.id) {
+      console.log("Tracking escape attempt:", noEscapes);
       saveTracking(params.id, "escape", { noEscapes });
     }
   }, [noEscapes, params.id, saveTracking]);
+
+  // FIXED: Notification system - detect tracking changes
+  useEffect(() => {
+    if (!trackingData) {
+      prevTrackingRef.current = trackingData;
+      return;
+    }
+
+    const prev = prevTrackingRef.current;
+    
+    // First time seeing data - don't show notifications
+    if (!prev) {
+      prevTrackingRef.current = trackingData;
+      return;
+    }
+
+    console.log("Tracking data changed:", { prev, current: trackingData });
+    
+    // Detect if link was just opened
+    if (!prev.opened && trackingData.opened && !hasShownOpenedRef.current) {
+      console.log("Link was opened!");
+      setNotificationText(` ${name || "They"} opened your link!`);
+      setShowNotification(true);
+      playSuccessSound();
+      hasShownOpenedRef.current = true;
+      setTimeout(() => setShowNotification(false), 4000);
+    }
+    
+    // Detect if they're trying to escape (escape count increased)
+    if (trackingData.noEscapes > (prev.noEscapes || 0) && !trackingData.answered) {
+      console.log("Escape attempt detected!");
+      setNotificationText(`😂 They tried to click "No" ${trackingData.noEscapes} time${trackingData.noEscapes !== 1 ? 's' : ''}!`);
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 3000);
+    }
+    
+    // Detect if they said YES!
+    if (!prev.answered && trackingData.answered) {
+      console.log("They said YES!");
+      setNotificationText(`💖 THEY SAID YES! ${name || "They"} accepted!`);
+      setShowNotification(true);
+      playSuccessSound();
+      setTimeout(() => {
+        setShowNotification(false);
+        // Auto-trigger confetti celebration
+        burst();
+      }, 5000);
+    }
+    
+    prevTrackingRef.current = trackingData;
+  }, [trackingData, name, playSuccessSound, burst]);
 
   // IMPROVED: Smoother, more gradual scaling with diminishing returns
   useEffect(() => {
@@ -404,7 +490,7 @@ export default function App() {
     setGeneratedLink(link);
     setLinkId(id);
     
-    // Initialize tracking
+    // Initialize tracking in Firebase
     saveTracking(id, "create");
   };
 
@@ -426,14 +512,17 @@ export default function App() {
   const handleReset = () => {
     setStage("input"); setNoEscapes(0);
     setNoPos({ x:0, y:0 }); setYesScale(1); setGeneratedLink(""); setLinkId("");
+    hasShownOpenedRef.current = false;
+    prevTrackingRef.current = null;
     window.history.replaceState({}, "", window.location.pathname);
   };
 
   const handleYesClick = () => {
     playSuccessSound();
     
-    // Save the "yes" response
+    // Save the "yes" response to Firebase
     if (params.id) {
+      console.log("Saving YES response to Firebase");
       saveTracking(params.id, "yes", { noEscapes });
     }
     
@@ -533,42 +622,74 @@ export default function App() {
                   transform: name.trim() ? "scale(1)" : "scale(0.98)"
                 }}
               >
-                Generate Link 
+                Generate Link ✨
               </button>
             )}
 
             {generatedLink && (
               <div style={S.linkResultCard}>
-                <p style={S.linkLabel}>✨ Link ready! Send this to {name.trim()}:</p>
+                <p style={S.linkLabel}> Link ready! Send this to {name.trim()}:</p>
                 <div style={S.linkBox}>
                   <span style={S.linkText}>{generatedLink}</span>
                 </div>
                 <div style={S.buttonGroup}>
-                  <button onClick={handleCopyLink} style={S.copyBtn}>Copy Link 📋</button>
-                  <button onClick={() => setStage("prank")} style={S.previewBtn}>Preview 👁️</button>
+                  <button onClick={handleCopyLink} style={S.copyBtn}>Copy Link </button>
+                  <button onClick={() => setStage("prank")} style={S.previewBtn}>Preview </button>
                 </div>
                 
                 {/* Tracking Status */}
                 {trackingData && (
                   <div style={S.trackingCard}>
-                    <div style={S.trackingTitle}>📊 Link Status</div>
+                    <div style={S.trackingTitle}>
+                       Link Status 
+                      <span style={{
+                        display:"inline-block",
+                        width:8,
+                        height:8,
+                        borderRadius:"50%",
+                        background:"#4caf50",
+                        marginLeft:8,
+                        animation:"pulse 2s ease-in-out infinite",
+                        boxShadow:"0 0 8px #4caf50"
+                      }}></span>
+                      <span style={{fontSize:"0.7rem", marginLeft:6, opacity:0.7}}>Live</span>
+                    </div>
                     <div style={S.trackingGrid}>
                       <div style={S.trackingItem}>
                         <span style={S.trackingLabel}>Opened:</span>
                         <span style={{...S.trackingValue, color: trackingData.opened ? "#4caf50" : "#999"}}>
-                          {trackingData.opened ? "✓ Yes" : "Not yet"}
+                          {trackingData.opened ? "✓ Yes" : "⏳ Waiting..."}
                         </span>
                       </div>
                       {trackingData.opened && !trackingData.answered && (
                         <div style={S.trackingItem}>
                           <span style={S.trackingLabel}>Escape attempts:</span>
-                          <span style={S.trackingValue}>{trackingData.noEscapes || 0}</span>
+                          <span style={{...S.trackingValue, color:"#ff9800", fontWeight:800}}>
+                            {trackingData.noEscapes || 0}
+                            {trackingData.noEscapes > 0 && " 😂"}
+                          </span>
+                        </div>
+                      )}
+                      {trackingData.lastUpdated && (
+                        <div style={{
+                          ...S.trackingItem,
+                          borderBottom:"none",
+                          paddingTop:8,
+                          fontSize:"0.75rem",
+                          opacity:0.6,
+                          fontStyle:"italic"
+                        }}>
+                          <span>Last updated:</span>
+                          <span>{new Date(trackingData.lastUpdated).toLocaleTimeString()}</span>
                         </div>
                       )}
                     </div>
                     {trackingData.answered && (
-                      <div style={S.successBadge}>
-                        <span style={{ fontSize:"1.5rem", marginRight:8 }}>🎉</span>
+                      <div style={{
+                        ...S.successBadge,
+                        animation:"bounceIn 0.6s cubic-bezier(.34,1.56,.64,1)"
+                      }}>
+                        
                         They said YES!
                       </div>
                     )}
@@ -580,8 +701,40 @@ export default function App() {
         </div>
 
         <Toast show={showToast}>{toastMessage}</Toast>
+        
+        {/* Live Notification Banner */}
+        <div style={{
+          position:"fixed",
+          top: "calc(env(safe-area-inset-top, 0px) + 20px)",
+          left:"50%",
+          transform:`translateX(-50%) translateY(${showNotification ? 0 : -150}px)`,
+          transition:"transform 0.5s cubic-bezier(.34,1.56,.64,1)",
+          background:"linear-gradient(135deg, #4caf50 0%, #45a049 100%)",
+          color:"#fff",
+          padding:"1.2rem 2rem",
+          borderRadius:16,
+          fontSize:"1rem",
+          fontWeight:700,
+          zIndex:101,
+          boxShadow:"0 12px 40px rgba(76,175,80,0.5)",
+          border:"2px solid rgba(255,255,255,0.3)",
+          backdropFilter:"blur(12px)",
+          minWidth:280,
+          textAlign:"center",
+          animation: showNotification ? "bounceIn 0.6s cubic-bezier(.34,1.56,.64,1)" : "none",
+        }}>
+          {notificationText}
+        </div>
+        
         {ConfettiCanvas}
-        <style>{`@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}`}</style>
+        <style>{`
+          @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}
+          @keyframes bounceIn{
+            0%{transform:translateX(-50%) scale(0.3);opacity:0}
+            50%{transform:translateX(-50%) scale(1.05);opacity:1}
+            100%{transform:translateX(-50%) scale(1);opacity:1}
+          }
+        `}</style>
       </div>
     );
   }
@@ -822,25 +975,25 @@ const S = {
     textTransform:"uppercase",
   },
 
-  input: {
-    width: "100%",
-    padding: "1rem 1.25rem",
-    fontSize: "16px",
-    fontFamily: "'Sacramento', cursive",         
-    fontWeight: 400,                               
-    border: "2px solid rgba(233,30,99,0.15)",
-    borderRadius: 12,
-    background: "rgba(255,255,255,0.8)",
-    outline: "none",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-    transition: "all 0.3s ease",
-    WebkitAppearance: "none",
-    MozAppearance: "none",
-    appearance: "none",
-    touchAction: "manipulation",
-    boxSizing: "border-box",
-    color: "#e91e63",
-  },
+input: {
+  width: "100%",
+  padding: "1rem 1.25rem",
+  fontSize: "17px",                 // or try 16px if still feels big
+  fontFamily: "'Caveat', cursive",
+  fontWeight: 400,                  // Caveat regular is perfect
+  border: "2px solid rgba(233,30,99,0.15)",
+  borderRadius: 12,
+  background: "rgba(255,255,255,0.8)",
+  outline: "none",
+  boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+  transition: "all 0.3s ease",
+  WebkitAppearance: "none",
+  MozAppearance: "none",
+  appearance: "none",
+  touchAction: "manipulation",
+  boxSizing: "border-box",
+  color: "#e91e63",
+},
 
   inputName: {
     width:"100%",
